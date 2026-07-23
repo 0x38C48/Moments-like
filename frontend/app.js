@@ -129,6 +129,17 @@ function renderTable(rows) {
   `;
 }
 
+function checked(value) {
+  return Number(value) ? "checked" : "";
+}
+
+function latestMomentText(row) {
+  if (!row.latest_moment_at) return "最近还没有朋友圈";
+  const location = row.latest_moment_location ? ` · ${row.latest_moment_location}` : "";
+  const preview = row.latest_moment_preview ? ` · ${row.latest_moment_preview}` : "";
+  return `${row.latest_moment_at}${location}${preview}`;
+}
+
 async function login() {
   const user = await request("/auth/login", {
     method: "POST",
@@ -196,14 +207,36 @@ async function loadFriends() {
   list.innerHTML = "";
   if (!rows.length) return renderEmpty(list);
   rows.forEach((row) => {
+    const displayName = row.my_remark || row.nickname;
+    const avatarText = (displayName || "U").slice(0, 1).toUpperCase();
+    const avatarImage = row.avatar_url
+      ? `<img src="${row.avatar_url}" alt="${displayName}头像" onerror="this.style.display='none'" />`
+      : "";
     const node = card(`
-      <header><strong>${row.nickname}</strong><span class="meta">好友编号 ${row.friend_id}</span></header>
-      <div class="meta">${row.wechat_id} · 关系编号 ${row.friendship_id}</div>
+      <div class="friend-main">
+        <div class="friend-avatar">${avatarImage}<span>${avatarText}</span></div>
+        <div class="friend-info">
+          <header>
+            <strong>${displayName}</strong>
+            <span class="meta">${row.is_starred ? "星标" : ""}${row.status === "blocked" ? " · 已拉黑" : ""}</span>
+          </header>
+          <div class="meta">${row.wechat_id} · ${row.nickname}${row.signature ? ` · ${row.signature}` : ""}</div>
+          <p class="friend-moment">${latestMomentText(row)}</p>
+        </div>
+      </div>
       <div class="actions">
         <button class="secondary" data-chat="${row.friend_id}" data-chat-name="${row.nickname}">发消息</button>
-        <button data-permission="${row.friendship_id}" data-chat-ok="${row.can_chat}" data-view-my="${row.can_view_my_moments}" data-view-their="${row.can_view_their_moments}" data-star="${row.is_starred}">切换权限</button>
+        <button data-toggle-permission-panel="${row.friendship_id}">权限设置</button>
       </div>
-      <p class="meta">聊天 ${row.can_chat} · 看我朋友圈 ${row.can_view_my_moments} · 我看对方 ${row.can_view_their_moments} · 星标 ${row.is_starred}</p>
+      <div class="permission-panel hidden" id="permission-${row.friendship_id}">
+        <label>好友备注<input data-permission-field="remark" value="${row.my_remark || ""}" /></label>
+        <label><input type="checkbox" data-permission-field="can_chat" ${checked(row.can_chat)} /> 允许聊天</label>
+        <label><input type="checkbox" data-permission-field="can_view_my_moments" ${checked(row.can_view_my_moments)} /> 允许对方看我的朋友圈</label>
+        <label><input type="checkbox" data-permission-field="can_view_their_moments" ${checked(row.can_view_their_moments)} /> 允许我看对方朋友圈</label>
+        <label><input type="checkbox" data-permission-field="is_starred" ${checked(row.is_starred)} /> 星标朋友</label>
+        <label><input type="checkbox" data-permission-field="blocked" ${row.status === "blocked" ? "checked" : ""} /> 加入黑名单</label>
+        <button data-save-permissions="${row.friendship_id}">保存权限</button>
+      </div>
     `);
     list.appendChild(node);
   });
@@ -249,19 +282,29 @@ async function handleFriendRequest(friendshipId, status) {
   await loadFriends();
 }
 
-async function togglePermission(button) {
+function togglePermissionPanel(friendshipId) {
+  const panel = $(`permission-${friendshipId}`);
+  if (panel) panel.classList.toggle("hidden");
+}
+
+async function savePermissions(friendshipId) {
   const user = requireLogin();
-  await request(`/friends/${button.dataset.permission}/permissions`, {
+  const panel = $(`permission-${friendshipId}`);
+  if (!panel) return;
+  const valueOf = (field) => panel.querySelector(`[data-permission-field="${field}"]`);
+  await request(`/friends/${friendshipId}/permissions`, {
     method: "PATCH",
     body: JSON.stringify({
       user_id: user.user_id,
-      can_chat: Number(button.dataset.chatOk) ? 0 : 1,
-      can_view_my_moments: Number(button.dataset.viewMy) ? 0 : 1,
-      can_view_their_moments: Number(button.dataset.viewTheir) ? 0 : 1,
-      is_starred: Number(button.dataset.star) ? 0 : 1,
+      remark: valueOf("remark").value.trim(),
+      can_chat: valueOf("can_chat").checked,
+      can_view_my_moments: valueOf("can_view_my_moments").checked,
+      can_view_their_moments: valueOf("can_view_their_moments").checked,
+      is_starred: valueOf("is_starred").checked,
+      blocked: valueOf("blocked").checked,
     }),
   });
-  toast("朋友权限已切换");
+  toast("朋友权限已保存");
   await loadFriends();
 }
 
@@ -511,7 +554,8 @@ function bindEvents() {
     if (target.dataset.add) addFriend(target.dataset.add).catch((error) => toast(error.message));
     if (target.dataset.accept) handleFriendRequest(target.dataset.accept, "accepted").catch((error) => toast(error.message));
     if (target.dataset.reject) handleFriendRequest(target.dataset.reject, "rejected").catch((error) => toast(error.message));
-    if (target.dataset.permission) togglePermission(target).catch((error) => toast(error.message));
+    if (target.dataset.togglePermissionPanel) togglePermissionPanel(target.dataset.togglePermissionPanel);
+    if (target.dataset.savePermissions) savePermissions(target.dataset.savePermissions).catch((error) => toast(error.message));
     if (target.dataset.chat) {
       createPrivateConversation(target.dataset.chat, target.dataset.chatName).catch((error) => toast(error.message));
     }

@@ -215,19 +215,46 @@ def friends(user_id: int):
               CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END AS friend_id,
               u.wechat_id,
               p.nickname,
+              p.avatar_url,
+              p.signature,
               f.status,
+              CASE WHEN f.requester_id = %s THEN f.requester_remark ELSE f.addressee_remark END AS my_remark,
               f.can_chat,
               f.can_view_my_moments,
               f.can_view_their_moments,
-              f.is_starred
+              f.is_starred,
+              (
+                SELECT mp.created_at
+                FROM moment_posts mp
+                WHERE mp.author_id = CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END
+                  AND mp.deleted_at IS NULL
+                ORDER BY mp.created_at DESC
+                LIMIT 1
+              ) AS latest_moment_at,
+              (
+                SELECT mp.location
+                FROM moment_posts mp
+                WHERE mp.author_id = CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END
+                  AND mp.deleted_at IS NULL
+                ORDER BY mp.created_at DESC
+                LIMIT 1
+              ) AS latest_moment_location,
+              (
+                SELECT LEFT(mp.content, 42)
+                FROM moment_posts mp
+                WHERE mp.author_id = CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END
+                  AND mp.deleted_at IS NULL
+                ORDER BY mp.created_at DESC
+                LIMIT 1
+              ) AS latest_moment_preview
             FROM friendships f
             JOIN users u ON u.user_id = CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END
             JOIN user_profiles p ON p.user_id = u.user_id
             WHERE (f.requester_id = %s OR f.addressee_id = %s)
-              AND f.status = 'accepted'
-            ORDER BY p.nickname
+              AND f.status IN ('accepted', 'blocked')
+            ORDER BY f.is_starred DESC, p.nickname
             """,
-            (user_id, user_id, user_id, user_id),
+            (user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id),
         )
     return ok(rows)
 
@@ -293,12 +320,28 @@ def handle_request(friendship_id: int):
 def update_permissions(friendship_id: int):
     body = json_body()
     user_id = int(body.get("user_id", 0))
+    blocked = bool(body.get("blocked"))
+    status = "blocked" if blocked else "accepted"
+    remark = body.get("remark", "").strip() or None
     with Database() as db:
-        affected = db.execute(
+        friendship = db.one(
             """
+            SELECT requester_id, addressee_id
+            FROM friendships
+            WHERE friendship_id = %s
+              AND (requester_id = %s OR addressee_id = %s)
+            """,
+            (friendship_id, user_id, user_id),
+        )
+        if not friendship:
+            return fail("没有找到可修改的好友关系", 404)
+        remark_column = "requester_remark" if friendship["requester_id"] == user_id else "addressee_remark"
+        affected = db.execute(
+            f"""
             UPDATE friendships
             SET can_chat = %s, can_view_my_moments = %s,
-                can_view_their_moments = %s, is_starred = %s
+                can_view_their_moments = %s, is_starred = %s,
+                status = %s, {remark_column} = %s
             WHERE friendship_id = %s
               AND (requester_id = %s OR addressee_id = %s)
             """,
@@ -307,6 +350,8 @@ def update_permissions(friendship_id: int):
                 int(bool(body.get("can_view_my_moments"))),
                 int(bool(body.get("can_view_their_moments"))),
                 int(bool(body.get("is_starred"))),
+                status,
+                remark,
                 friendship_id,
                 user_id,
                 user_id,
