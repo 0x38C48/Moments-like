@@ -92,8 +92,8 @@
         <section class="view" id="chat">
           <div class="toolbar">
             <button id="loadConversationsBtn">刷新会话</button>
-            <input id="friendIdInput" placeholder="好友用户编号" />
-            <button class="secondary" id="createPrivateBtn">创建私聊</button>
+            <input id="friendIdInput" placeholder="备用：输入好友用户编号" />
+            <button class="secondary" id="createPrivateBtn">打开私聊</button>
           </div>
           <div class="split chat-layout">
             <div>
@@ -101,7 +101,7 @@
               <div class="list" id="conversationList"></div>
             </div>
             <div>
-              <h3>消息</h3>
+              <h3 id="chatPeerTitle">消息</h3>
               <div class="toolbar compact">
                 <input id="messageKeyword" placeholder="消息关键词" />
                 <button id="searchMessagesBtn">检索</button>

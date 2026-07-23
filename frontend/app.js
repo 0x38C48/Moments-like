@@ -3,6 +3,7 @@ const API = "http://127.0.0.1:5000/api";
 const state = {
   user: JSON.parse(localStorage.getItem("momentsUser") || "null"),
   conversationId: null,
+  conversationTitle: "",
   activeTab: "profile",
 };
 
@@ -170,7 +171,7 @@ async function loadFriends() {
       <header><strong>${row.nickname}</strong><span class="meta">好友编号 ${row.friend_id}</span></header>
       <div class="meta">${row.wechat_id} · 关系编号 ${row.friendship_id}</div>
       <div class="actions">
-        <button class="secondary" data-chat="${row.friend_id}">创建私聊</button>
+        <button class="secondary" data-chat="${row.friend_id}" data-chat-name="${row.nickname}">发消息</button>
         <button data-permission="${row.friendship_id}" data-chat-ok="${row.can_chat}" data-view-my="${row.can_view_my_moments}" data-view-their="${row.can_view_their_moments}" data-star="${row.is_starred}">切换权限</button>
       </div>
       <p class="meta">聊天 ${row.can_chat} · 看我朋友圈 ${row.can_view_my_moments} · 我看对方 ${row.can_view_their_moments} · 星标 ${row.is_starred}</p>
@@ -234,14 +235,17 @@ async function togglePermission(button) {
   await loadFriends();
 }
 
-async function createPrivateConversation(friendId) {
+async function createPrivateConversation(friendId, friendName = "") {
   const user = requireLogin();
   const result = await request("/conversations/private", {
     method: "POST",
     body: JSON.stringify({ user_id: user.user_id, friend_id: Number(friendId) }),
   });
   state.conversationId = result.conversation_id;
-  toast(`已创建会话 ${state.conversationId}`);
+  state.conversationTitle = friendName || `私聊 #${friendId}`;
+  $("chatPeerTitle").textContent = state.conversationTitle;
+  switchTab("chat");
+  toast(result.reused ? "已打开已有私聊" : "已创建私聊");
   await loadConversations();
   await loadMessages();
 }
@@ -256,8 +260,12 @@ async function loadConversations() {
     const node = card(`
       <header><strong>${row.title || "未命名会话"}</strong><span class="meta">#${row.conversation_id}</span></header>
       <div class="meta">${row.conversation_type} · ${row.member_count} 人 · ${row.last_message_at || "暂无消息"}</div>
-      <div class="actions"><button data-open-conversation="${row.conversation_id}">打开</button></div>
+      <div class="actions"><button data-open-conversation="${row.conversation_id}" data-conversation-title="${row.title || "未命名会话"}">打开聊天</button></div>
     `);
+    node.classList.add("conversation-card");
+    if (Number(row.conversation_id) === Number(state.conversationId)) {
+      node.classList.add("selected");
+    }
     list.appendChild(node);
   });
 }
@@ -265,6 +273,7 @@ async function loadConversations() {
 async function loadMessages() {
   const user = requireLogin();
   if (!state.conversationId) return renderEmpty($("messageList"), "请选择会话");
+  $("chatPeerTitle").textContent = state.conversationTitle || `会话 #${state.conversationId}`;
   const keyword = encodeURIComponent($("messageKeyword").value.trim());
   const rows = await request(`/messages/${state.conversationId}?user_id=${user.user_id}&keyword=${keyword}`);
   const list = $("messageList");
@@ -272,8 +281,14 @@ async function loadMessages() {
   if (!rows.length) return renderEmpty(list);
   rows.reverse().forEach((row) => {
     const node = document.createElement("div");
-    node.className = "message";
-    node.innerHTML = `<strong>${row.sender}</strong><p>${row.content}</p><span class="meta">${row.sent_at}</span>`;
+    node.className = `message ${Number(row.sender_id) === Number(user.user_id) ? "own" : ""}`;
+    node.innerHTML = `
+      <div class="bubble">
+        <strong>${row.sender}</strong>
+        <p>${row.content}</p>
+        <span class="meta">${row.sent_at}</span>
+      </div>
+    `;
     list.appendChild(node);
   });
   list.scrollTop = list.scrollHeight;
@@ -358,14 +373,31 @@ async function loadMoments() {
     const mediaHtml = (row.media || [])
       .map((item) => `<img src="${item.media_url}" alt="朋友圈图片" loading="lazy" />`)
       .join("");
+    const commentsHtml = (row.comments || [])
+      .slice(0, 6)
+      .map((item) => `<p><strong>${item.nickname}</strong>：${item.content}</p>`)
+      .join("");
+    const avatarText = (row.author || "U").slice(0, 1).toUpperCase();
     node.innerHTML = `
-      <header><strong>${row.author}</strong><span class="meta">${row.visibility_type} · ${row.created_at}</span></header>
-      <p>${row.content}</p>
-      ${mediaHtml ? `<div class="moment-media">${mediaHtml}</div>` : ""}
-      <div class="meta">${row.location || ""} · ${row.like_count} 赞 · ${row.comment_count} 评论</div>
-      <div class="actions">
-        <button data-like="${row.post_id}">点赞</button>
-        <button class="secondary" data-comment="${row.post_id}">评论</button>
+      <div class="moment-avatar">${avatarText}</div>
+      <div class="moment-body">
+        <header>
+          <strong>${row.author}</strong>
+          <span class="meta">${row.visibility_type}</span>
+        </header>
+        <p class="moment-text">${row.content}</p>
+        ${mediaHtml ? `<div class="moment-media">${mediaHtml}</div>` : ""}
+        <div class="moment-footer">
+          <span class="meta">${row.location || "未标注位置"} · ${row.created_at}</span>
+          <div class="moment-actions">
+            <button data-like="${row.post_id}">赞</button>
+            <button data-comment="${row.post_id}">评论</button>
+          </div>
+        </div>
+        <div class="moment-social">
+          <div class="meta">${row.like_count} 人觉得不错 · ${row.comment_count} 条评论</div>
+          ${commentsHtml ? `<div class="moment-comments">${commentsHtml}</div>` : ""}
+        </div>
       </div>
     `;
     list.appendChild(node);
@@ -435,9 +467,13 @@ function bindEvents() {
     if (target.dataset.accept) handleFriendRequest(target.dataset.accept, "accepted").catch((error) => toast(error.message));
     if (target.dataset.reject) handleFriendRequest(target.dataset.reject, "rejected").catch((error) => toast(error.message));
     if (target.dataset.permission) togglePermission(target).catch((error) => toast(error.message));
-    if (target.dataset.chat) createPrivateConversation(target.dataset.chat).catch((error) => toast(error.message));
+    if (target.dataset.chat) {
+      createPrivateConversation(target.dataset.chat, target.dataset.chatName).catch((error) => toast(error.message));
+    }
     if (target.dataset.openConversation) {
       state.conversationId = Number(target.dataset.openConversation);
+      state.conversationTitle = target.dataset.conversationTitle || `会话 #${state.conversationId}`;
+      $("chatPeerTitle").textContent = state.conversationTitle;
       loadMessages().catch((error) => toast(error.message));
     }
     if (target.dataset.like) likeMoment(target.dataset.like).catch((error) => toast(error.message));

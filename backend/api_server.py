@@ -31,8 +31,10 @@ def sha256_text(text: str) -> str:
 
 
 def normalize(value: Any) -> Any:
-    if isinstance(value, (datetime, date)):
+    if isinstance(value, datetime):
         return value.isoformat(sep=" ")
+    if isinstance(value, date):
+        return value.isoformat()
     if isinstance(value, list):
         return [normalize(item) for item in value]
     if isinstance(value, dict):
@@ -353,6 +355,29 @@ def create_private_conversation():
         )
         if not friendship:
             return fail("对方不是可聊天好友")
+
+        existing = db.one(
+            """
+            SELECT c.conversation_id
+            FROM conversations c
+            JOIN conversation_members cm_me
+              ON cm_me.conversation_id = c.conversation_id AND cm_me.user_id = %s
+            JOIN conversation_members cm_friend
+              ON cm_friend.conversation_id = c.conversation_id AND cm_friend.user_id = %s
+            WHERE c.conversation_type = 'private'
+              AND (
+                SELECT COUNT(*)
+                FROM conversation_members cm_count
+                WHERE cm_count.conversation_id = c.conversation_id
+              ) = 2
+            ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
+            LIMIT 1
+            """,
+            (user_id, friend_id),
+        )
+        if existing:
+            return ok({"conversation_id": existing["conversation_id"], "reused": True})
+
         with db.conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO conversations(conversation_type, title, created_by) VALUES('private', %s, %s)",
@@ -364,7 +389,7 @@ def create_private_conversation():
                 [(conversation_id, user_id, "owner"), (conversation_id, friend_id, "member")],
             )
         db.conn.commit()
-    return ok({"conversation_id": conversation_id})
+    return ok({"conversation_id": conversation_id, "reused": False})
 
 
 @app.get("/api/messages/<int:conversation_id>")
@@ -378,7 +403,7 @@ def messages(conversation_id: int):
     with Database() as db:
         rows = db.query(
             f"""
-            SELECT m.message_id, p.nickname AS sender, m.message_type, m.content, m.sent_at, m.is_recalled
+            SELECT m.message_id, m.sender_id, p.nickname AS sender, m.message_type, m.content, m.sent_at, m.is_recalled
             FROM messages m
             JOIN user_profiles p ON p.user_id = m.sender_id
             JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = %s
@@ -450,8 +475,25 @@ def moments(user_id: int):
             )
             for media in media_rows:
                 media_by_post.setdefault(media["post_id"], []).append(media)
+
+            comment_rows = db.query(
+                f"""
+                SELECT mc.post_id, mc.comment_id, mc.user_id, up.nickname, mc.content, mc.commented_at
+                FROM moment_comments mc
+                JOIN user_profiles up ON up.user_id = mc.user_id
+                WHERE mc.post_id IN ({placeholders})
+                ORDER BY mc.post_id, mc.commented_at, mc.comment_id
+                """,
+                tuple(post_ids),
+            )
+            comments_by_post: dict[int, list[dict[str, Any]]] = {post_id: [] for post_id in post_ids}
+            for comment in comment_rows:
+                comments_by_post.setdefault(comment["post_id"], []).append(comment)
+        else:
+            comments_by_post = {}
         for row in rows:
             row["media"] = media_by_post.get(row["post_id"], [])
+            row["comments"] = comments_by_post.get(row["post_id"], [])
     return ok(rows)
 
 
