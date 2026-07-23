@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .env
+.idea/
+backend/uploads/*
+!backend/uploads/.gitkeep

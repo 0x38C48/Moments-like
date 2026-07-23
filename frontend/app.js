@@ -3,6 +3,7 @@ const API = "http://127.0.0.1:5000/api";
 const state = {
   user: JSON.parse(localStorage.getItem("momentsUser") || "null"),
   conversationId: null,
+  activeTab: "profile",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -51,6 +52,7 @@ function setUser(user) {
 }
 
 function switchTab(tabId) {
+  state.activeTab = tabId;
   document.querySelectorAll(".tabs button").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.tab === tabId);
   });
@@ -58,6 +60,16 @@ function switchTab(tabId) {
     view.classList.toggle("active", view.id === tabId);
   });
   $("pageTitle").textContent = document.querySelector(`[data-tab="${tabId}"]`).textContent;
+  refreshActiveTab().catch((error) => toast(error.message));
+}
+
+async function refreshActiveTab() {
+  if (!state.user) return;
+  if (state.activeTab === "profile") await loadProfile();
+  if (state.activeTab === "friends") await Promise.all([loadFriends(), loadRequests()]);
+  if (state.activeTab === "chat") await loadConversations();
+  if (state.activeTab === "moments") await loadMoments();
+  if (state.activeTab === "stats") await loadStats("messages");
 }
 
 function card(html) {
@@ -280,10 +292,43 @@ async function sendMessage() {
   await loadConversations();
 }
 
+async function uploadMomentImages() {
+  const files = Array.from($("momentImages").files || []);
+  const uploadedUrls = [];
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(`${API}/uploads`, {
+      method: "POST",
+      body: formData,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      throw new Error(payload.message || "图片上传失败");
+    }
+    uploadedUrls.push(payload.data.url);
+  }
+  return uploadedUrls;
+}
+
+function previewMomentImages() {
+  const files = Array.from($("momentImages").files || []);
+  const preview = $("momentPreview");
+  preview.innerHTML = "";
+  files.forEach((file) => {
+    const image = document.createElement("img");
+    image.src = URL.createObjectURL(file);
+    image.onload = () => URL.revokeObjectURL(image.src);
+    image.alt = file.name;
+    preview.appendChild(image);
+  });
+}
+
 async function publishMoment() {
   const user = requireLogin();
   const content = $("momentContent").value.trim();
   if (!content) return toast("请输入朋友圈内容");
+  const mediaUrls = await uploadMomentImages();
   await request("/moments", {
     method: "POST",
     body: JSON.stringify({
@@ -291,9 +336,12 @@ async function publishMoment() {
       content,
       visibility_type: $("momentVisibility").value,
       location: $("momentLocation").value.trim(),
+      media_urls: mediaUrls,
     }),
   });
   $("momentContent").value = "";
+  $("momentImages").value = "";
+  $("momentPreview").innerHTML = "";
   toast("朋友圈已发布");
   await loadMoments();
 }
@@ -307,9 +355,13 @@ async function loadMoments() {
   rows.forEach((row) => {
     const node = document.createElement("article");
     node.className = "moment";
+    const mediaHtml = (row.media || [])
+      .map((item) => `<img src="${item.media_url}" alt="朋友圈图片" loading="lazy" />`)
+      .join("");
     node.innerHTML = `
       <header><strong>${row.author}</strong><span class="meta">${row.visibility_type} · ${row.created_at}</span></header>
       <p>${row.content}</p>
+      ${mediaHtml ? `<div class="moment-media">${mediaHtml}</div>` : ""}
       <div class="meta">${row.location || ""} · ${row.like_count} 赞 · ${row.comment_count} 评论</div>
       <div class="actions">
         <button data-like="${row.post_id}">点赞</button>
@@ -369,6 +421,7 @@ function bindEvents() {
   $("sendMessageBtn").addEventListener("click", () => sendMessage().catch((error) => toast(error.message)));
   $("publishMomentBtn").addEventListener("click", () => publishMoment().catch((error) => toast(error.message)));
   $("loadMomentsBtn").addEventListener("click", () => loadMoments().catch((error) => toast(error.message)));
+  $("momentImages").addEventListener("change", previewMomentImages);
 
   document.querySelector(".tabs").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-tab]");

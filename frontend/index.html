@@ -118,6 +118,11 @@
         <section class="view" id="moments">
           <div class="composer">
             <textarea id="momentContent" placeholder="这一刻的想法..."></textarea>
+            <label class="upload-box">
+              <span>朋友圈图片</span>
+              <input id="momentImages" type="file" accept="image/*" multiple />
+            </label>
+            <div class="image-preview" id="momentPreview"></div>
             <div class="toolbar">
               <select id="momentVisibility">
                 <option value="friends">仅朋友</option>

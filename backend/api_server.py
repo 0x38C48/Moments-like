@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import sys
+import uuid
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -18,6 +20,10 @@ from db_config import connect_mysql
 
 app = Flask(__name__)
 CORS(app)
+
+UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 
 def sha256_text(text: str) -> str:
@@ -92,6 +98,27 @@ def health():
     with Database() as db:
         row = db.one("SELECT DATABASE() AS database_name, NOW() AS server_time")
     return ok(row)
+
+
+@app.post("/api/uploads")
+def upload_image():
+    file = request.files.get("file")
+    if file is None or not file.filename:
+        return fail("请选择要上传的图片")
+
+    original_name = secure_filename(file.filename)
+    ext = Path(original_name).suffix.lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        return fail("仅支持 jpg、jpeg、png、gif、webp 图片")
+
+    filename = f"{uuid.uuid4().hex}{ext}"
+    file.save(UPLOAD_DIR / filename)
+    return ok({"url": f"http://127.0.0.1:5000/uploads/{filename}", "filename": filename})
+
+
+@app.get("/uploads/<path:filename>")
+def uploaded_file(filename: str):
+    return send_from_directory(UPLOAD_DIR, filename)
 
 
 @app.post("/api/auth/login")
@@ -408,6 +435,23 @@ def moments(user_id: int):
             """,
             (user_id, user_id, user_id, user_id),
         )
+        post_ids = [row["post_id"] for row in rows]
+        media_by_post: dict[int, list[dict[str, Any]]] = {post_id: [] for post_id in post_ids}
+        if post_ids:
+            placeholders = ", ".join(["%s"] * len(post_ids))
+            media_rows = db.query(
+                f"""
+                SELECT post_id, media_type, media_url, sort_order
+                FROM moment_media
+                WHERE post_id IN ({placeholders})
+                ORDER BY post_id, sort_order, media_id
+                """,
+                tuple(post_ids),
+            )
+            for media in media_rows:
+                media_by_post.setdefault(media["post_id"], []).append(media)
+        for row in rows:
+            row["media"] = media_by_post.get(row["post_id"], [])
     return ok(rows)
 
 
@@ -437,6 +481,15 @@ def publish_moment():
                 cur.executemany(
                     "INSERT IGNORE INTO moment_visibility(post_id, visible_user_id) VALUES(%s, %s)",
                     [(post_id, int(uid)) for uid in selected_ids],
+                )
+            media_urls = body.get("media_urls") or []
+            if media_urls:
+                cur.executemany(
+                    """
+                    INSERT INTO moment_media(post_id, media_type, media_url, sort_order)
+                    VALUES(%s, 'image', %s, %s)
+                    """,
+                    [(post_id, str(url), index + 1) for index, url in enumerate(media_urls)],
                 )
         db.conn.commit()
     return ok({"post_id": post_id})
@@ -512,4 +565,3 @@ def statistics(user_id: int, kind: str):
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)
-
