@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Moments-like 管理系统</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <section class="brand">
+          <div class="brand-mark">M</div>
+          <div>
+            <h1>Moments-like</h1>
+            <p>个人资料与聊天记录管理系统</p>
+          </div>
+        </section>
+
+        <section class="login-panel" id="loginPanel">
+          <label>微信号</label>
+          <input id="loginWechatId" value="u001" autocomplete="username" />
+          <label>密码</label>
+          <input id="loginPassword" type="password" value="123456" autocomplete="current-password" />
+          <button id="loginBtn">登录</button>
+        </section>
+
+        <section class="user-card hidden" id="userCard">
+          <div class="avatar" id="avatar">U</div>
+          <strong id="nickname">未登录</strong>
+          <span id="wechatId"></span>
+          <button class="ghost" id="logoutBtn">退出登录</button>
+        </section>
+
+        <nav class="tabs">
+          <button class="active" data-tab="profile">资料</button>
+          <button data-tab="friends">好友权限</button>
+          <button data-tab="chat">聊天记录</button>
+          <button data-tab="moments">朋友圈</button>
+          <button data-tab="stats">统计</button>
+        </nav>
+      </aside>
+
+      <section class="content">
+        <header class="topbar">
+          <div>
+            <h2 id="pageTitle">资料</h2>
+            <p id="statusText">后端 API：http://127.0.0.1:5000</p>
+          </div>
+          <button class="ghost" id="healthBtn">检测 MySQL 连接</button>
+        </header>
+
+        <section class="view active" id="profile">
+          <div class="toolbar">
+            <button id="loadProfileBtn">刷新资料</button>
+            <button class="secondary" id="saveProfileBtn">保存资料</button>
+          </div>
+          <div class="form-grid">
+            <label>昵称<input id="profileNickname" /></label>
+            <label>性别
+              <select id="profileGender">
+                <option value="unknown">unknown</option>
+                <option value="male">male</option>
+                <option value="female">female</option>
+              </select>
+            </label>
+            <label>地区<input id="profileRegion" /></label>
+            <label>手机号<input id="profilePhone" disabled /></label>
+            <label class="wide">个性签名<input id="profileSignature" /></label>
+          </div>
+        </section>
+
+        <section class="view" id="friends">
+          <div class="toolbar">
+            <input id="searchKeyword" placeholder="按微信号或昵称搜索用户" />
+            <button id="searchUserBtn">搜索</button>
+            <button class="secondary" id="loadFriendsBtn">好友列表</button>
+            <button class="secondary" id="loadRequestsBtn">好友申请</button>
+          </div>
+          <div class="split">
+            <div>
+              <h3>搜索结果 / 好友申请</h3>
+              <div class="list" id="userList"></div>
+            </div>
+            <div>
+              <h3>好友与权限</h3>
+              <div class="list" id="friendList"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="chat">
+          <div class="toolbar">
+            <button id="loadConversationsBtn">刷新会话</button>
+            <input id="friendIdInput" placeholder="好友用户编号" />
+            <button class="secondary" id="createPrivateBtn">创建私聊</button>
+          </div>
+          <div class="split chat-layout">
+            <div>
+              <h3>会话</h3>
+              <div class="list" id="conversationList"></div>
+            </div>
+            <div>
+              <h3>消息</h3>
+              <div class="toolbar compact">
+                <input id="messageKeyword" placeholder="消息关键词" />
+                <button id="searchMessagesBtn">检索</button>
+              </div>
+              <div class="message-box" id="messageList"></div>
+              <div class="send-row">
+                <input id="messageContent" placeholder="输入消息内容" />
+                <button id="sendMessageBtn">发送</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="moments">
+          <div class="composer">
+            <textarea id="momentContent" placeholder="这一刻的想法..."></textarea>
+            <div class="toolbar">
+              <select id="momentVisibility">
+                <option value="friends">仅朋友</option>
+                <option value="public">公开</option>
+                <option value="private">私密</option>
+                <option value="selected">指定可见</option>
+              </select>
+              <input id="momentLocation" placeholder="位置" />
+              <button id="publishMomentBtn">发布</button>
+              <button class="secondary" id="loadMomentsBtn">刷新朋友圈</button>
+            </div>
+          </div>
+          <div class="feed" id="momentList"></div>
+        </section>
+
+        <section class="view" id="stats">
+          <div class="stat-grid">
+            <button data-stat="messages">用户消息量排行</button>
+            <button data-stat="moments">朋友圈互动排行</button>
+            <button data-stat="permissions">朋友权限统计</button>
+            <button data-stat="conversations">会话活跃度</button>
+          </div>
+          <div class="table-wrap">
+            <table id="statsTable"></table>
+          </div>
+        </section>
+      </section>
+    </main>
+    <div class="toast" id="toast"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
