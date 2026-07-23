@@ -466,9 +466,6 @@ function bindEvents() {
   $("loadFriendsBtn").addEventListener("click", () => loadFriends().catch((error) => toast(error.message)));
   $("loadRequestsBtn").addEventListener("click", () => loadRequests().catch((error) => toast(error.message)));
   $("loadConversationsBtn").addEventListener("click", () => loadConversations().catch((error) => toast(error.message)));
-  $("createPrivateBtn").addEventListener("click", () =>
-    createPrivateConversation($("friendIdInput").value).catch((error) => toast(error.message))
-  );
   $("searchMessagesBtn").addEventListener("click", () => loadMessages().catch((error) => toast(error.message)));
   $("sendMessageBtn").addEventListener("click", () => sendMessage().catch((error) => toast(error.message)));
   $("publishMomentBtn").addEventListener("click", () => publishMoment().catch((error) => toast(error.message)));
