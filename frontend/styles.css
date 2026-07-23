@@ -72,12 +72,19 @@ textarea {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 0.18s ease;
+}
+
+.shell.sidebar-collapsed {
+  grid-template-columns: 88px minmax(0, 1fr);
 }
 
 .sidebar {
+  position: relative;
   background: #15211d;
   color: white;
   padding: 24px;
+  overflow: hidden;
 }
 
 .brand {
@@ -100,6 +107,32 @@ textarea {
 .brand h1 {
   margin: 0;
   font-size: 22px;
+}
+
+.brand-copy {
+  min-width: 0;
+}
+
+.sidebar-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0;
+}
+
+.sidebar-toggle svg,
+.nav-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .brand p,
@@ -142,14 +175,78 @@ textarea {
 }
 
 .tabs button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   text-align: left;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.12);
+  min-height: 44px;
 }
 
 .tabs button.active,
 .tabs button:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  flex: 0 0 22px;
+}
+
+.nav-label {
+  white-space: nowrap;
+}
+
+.shell.sidebar-collapsed .sidebar {
+  padding: 20px 16px;
+}
+
+.shell.sidebar-collapsed .brand {
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.shell.sidebar-collapsed .brand-copy,
+.shell.sidebar-collapsed .login-panel,
+.shell.sidebar-collapsed .user-card strong,
+.shell.sidebar-collapsed .user-card span,
+.shell.sidebar-collapsed .user-card .ghost,
+.shell.sidebar-collapsed .nav-label {
+  display: none;
+}
+
+.shell.sidebar-collapsed .brand-mark,
+.shell.sidebar-collapsed .avatar {
+  width: 42px;
+  height: 42px;
+}
+
+.shell.sidebar-collapsed .sidebar-toggle {
+  position: absolute;
+  left: 58px;
+  top: 22px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #1f8f5f;
+}
+
+.shell.sidebar-collapsed .sidebar-toggle svg {
+  transform: rotate(180deg);
+}
+
+.shell.sidebar-collapsed .tabs button {
+  justify-content: center;
+  padding: 10px;
+}
+
+.shell.sidebar-collapsed .user-card {
+  justify-items: center;
+  padding: 0;
+  border: 0;
 }
 
 .content {
@@ -280,6 +377,15 @@ h3 {
 
 .conversation-card {
   cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.conversation-card:hover,
+.conversation-card:focus-visible {
+  border-color: #9fd7bd;
+  background: #f4fbf7;
+  transform: translateY(-1px);
+  outline: none;
 }
 
 .conversation-card.selected {

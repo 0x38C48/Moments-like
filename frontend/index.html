@@ -7,14 +7,19 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="shell">
+    <main class="shell" id="appShell">
       <aside class="sidebar">
         <section class="brand">
           <div class="brand-mark">M</div>
-          <div>
+          <div class="brand-copy">
             <h1>Moments-like</h1>
             <p>个人资料与聊天记录管理系统</p>
           </div>
+          <button class="sidebar-toggle" id="sidebarToggle" title="折叠/展开侧栏" aria-label="折叠或展开侧栏">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+          </button>
         </section>
 
         <section class="login-panel" id="loginPanel">
@@ -33,11 +38,36 @@
         </section>
 
         <nav class="tabs">
-          <button class="active" data-tab="profile">资料</button>
-          <button data-tab="friends">好友权限</button>
-          <button data-tab="chat">聊天记录</button>
-          <button data-tab="moments">朋友圈</button>
-          <button data-tab="stats">统计</button>
+          <button class="active" data-tab="profile" data-title="资料" title="资料">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0" /><circle cx="12" cy="7" r="4" /></svg>
+            </span>
+            <span class="nav-label">资料</span>
+          </button>
+          <button data-tab="friends" data-title="好友权限" title="好友权限">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            </span>
+            <span class="nav-label">好友权限</span>
+          </button>
+          <button data-tab="chat" data-title="聊天记录" title="聊天记录">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /></svg>
+            </span>
+            <span class="nav-label">聊天记录</span>
+          </button>
+          <button data-tab="moments" data-title="朋友圈" title="朋友圈">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M8 12h8" /><path d="M12 8v8" /></svg>
+            </span>
+            <span class="nav-label">朋友圈</span>
+          </button>
+          <button data-tab="stats" data-title="统计" title="统计">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 19V5" /><path d="M4 19h16" /><path d="M8 16v-5" /><path d="M12 16V8" /><path d="M16 16v-3" /></svg>
+            </span>
+            <span class="nav-label">统计</span>
+          </button>
         </nav>
       </aside>
 

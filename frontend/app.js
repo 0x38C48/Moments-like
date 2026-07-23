@@ -60,8 +60,23 @@ function switchTab(tabId) {
   document.querySelectorAll(".view").forEach((view) => {
     view.classList.toggle("active", view.id === tabId);
   });
-  $("pageTitle").textContent = document.querySelector(`[data-tab="${tabId}"]`).textContent;
+  const activeButton = document.querySelector(`[data-tab="${tabId}"]`);
+  $("pageTitle").textContent = activeButton.dataset.title || activeButton.textContent.trim();
   refreshActiveTab().catch((error) => toast(error.message));
+}
+
+function applySidebarState() {
+  const collapsed = localStorage.getItem("momentsSidebarCollapsed") === "1";
+  $("appShell").classList.toggle("sidebar-collapsed", collapsed);
+  $("sidebarToggle").setAttribute("aria-expanded", collapsed ? "false" : "true");
+}
+
+function toggleSidebar() {
+  const shell = $("appShell");
+  const nextCollapsed = !shell.classList.contains("sidebar-collapsed");
+  shell.classList.toggle("sidebar-collapsed", nextCollapsed);
+  localStorage.setItem("momentsSidebarCollapsed", nextCollapsed ? "1" : "0");
+  $("sidebarToggle").setAttribute("aria-expanded", nextCollapsed ? "false" : "true");
 }
 
 async function refreshActiveTab() {
@@ -260,9 +275,13 @@ async function loadConversations() {
     const node = card(`
       <header><strong>${row.title || "未命名会话"}</strong><span class="meta">#${row.conversation_id}</span></header>
       <div class="meta">${row.conversation_type} · ${row.member_count} 人 · ${row.last_message_at || "暂无消息"}</div>
-      <div class="actions"><button data-open-conversation="${row.conversation_id}" data-conversation-title="${row.title || "未命名会话"}">打开聊天</button></div>
     `);
     node.classList.add("conversation-card");
+    node.dataset.openConversation = row.conversation_id;
+    node.dataset.conversationTitle = row.title || "未命名会话";
+    node.tabIndex = 0;
+    node.setAttribute("role", "button");
+    node.setAttribute("aria-label", `打开聊天：${row.title || "未命名会话"}`);
     if (Number(row.conversation_id) === Number(state.conversationId)) {
       node.classList.add("selected");
     }
@@ -439,6 +458,7 @@ async function health() {
 function bindEvents() {
   $("loginBtn").addEventListener("click", () => login().catch((error) => toast(error.message)));
   $("logoutBtn").addEventListener("click", () => setUser(null));
+  $("sidebarToggle").addEventListener("click", toggleSidebar);
   $("healthBtn").addEventListener("click", () => health().catch((error) => toast(error.message)));
   $("loadProfileBtn").addEventListener("click", () => loadProfile().catch((error) => toast(error.message)));
   $("saveProfileBtn").addEventListener("click", () => saveProfile().catch((error) => toast(error.message)));
@@ -461,6 +481,16 @@ function bindEvents() {
   });
 
   document.body.addEventListener("click", (event) => {
+    const conversationCard = event.target.closest(".conversation-card");
+    if (conversationCard) {
+      state.conversationId = Number(conversationCard.dataset.openConversation);
+      state.conversationTitle = conversationCard.dataset.conversationTitle || `会话 #${state.conversationId}`;
+      $("chatPeerTitle").textContent = state.conversationTitle;
+      loadMessages().catch((error) => toast(error.message));
+      loadConversations().catch(() => {});
+      return;
+    }
+
     const target = event.target.closest("button");
     if (!target) return;
     if (target.dataset.add) addFriend(target.dataset.add).catch((error) => toast(error.message));
@@ -480,9 +510,17 @@ function bindEvents() {
     if (target.dataset.comment) commentMoment(target.dataset.comment).catch((error) => toast(error.message));
     if (target.dataset.stat) loadStats(target.dataset.stat).catch((error) => toast(error.message));
   });
+
+  document.body.addEventListener("keydown", (event) => {
+    const conversationCard = event.target.closest(".conversation-card");
+    if (!conversationCard || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    conversationCard.click();
+  });
 }
 
 bindEvents();
+applySidebarState();
 setUser(state.user);
 if (state.user) {
   loadProfile().catch(() => {});
