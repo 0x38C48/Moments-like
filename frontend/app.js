@@ -140,6 +140,12 @@ function latestMomentText(row) {
   return `${row.latest_moment_at}${location}${preview}`;
 }
 
+function displayFriendRemark(row) {
+  const remark = (row.my_remark || "").trim();
+  if (!remark || /^备注\d+$/.test(remark)) return "";
+  return remark;
+}
+
 async function login() {
   const user = await request("/auth/login", {
     method: "POST",
@@ -207,7 +213,8 @@ async function loadFriends() {
   list.innerHTML = "";
   if (!rows.length) return renderEmpty(list);
   rows.forEach((row) => {
-    const displayName = row.my_remark || row.nickname;
+    const remark = displayFriendRemark(row);
+    const displayName = remark || row.nickname || row.wechat_id;
     const avatarText = (displayName || "U").slice(0, 1).toUpperCase();
     const avatarImage = row.avatar_url
       ? `<img src="${row.avatar_url}" alt="${displayName}头像" onerror="this.style.display='none'" />`
@@ -220,7 +227,7 @@ async function loadFriends() {
             <strong>${displayName}</strong>
             <span class="meta">${row.is_starred ? "星标" : ""}${row.status === "blocked" ? " · 已拉黑" : ""}</span>
           </header>
-          <div class="meta">${row.wechat_id} · ${row.nickname}${row.signature ? ` · ${row.signature}` : ""}</div>
+          <div class="meta">${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}${row.signature ? ` · ${row.signature}` : ""}</div>
           <p class="friend-moment">${latestMomentText(row)}</p>
         </div>
       </div>
@@ -229,7 +236,7 @@ async function loadFriends() {
         <button data-toggle-permission-panel="${row.friendship_id}">权限设置</button>
       </div>
       <div class="permission-panel hidden" id="permission-${row.friendship_id}">
-        <label>好友备注<input data-permission-field="remark" value="${row.my_remark || ""}" /></label>
+        <label>好友备注<input data-permission-field="remark" value="${remark}" placeholder="未设置时显示对方昵称" /></label>
         <label><input type="checkbox" data-permission-field="can_chat" ${checked(row.can_chat)} /> 允许聊天</label>
         <label><input type="checkbox" data-permission-field="can_view_my_moments" ${checked(row.can_view_my_moments)} /> 允许对方看我的朋友圈</label>
         <label><input type="checkbox" data-permission-field="can_view_their_moments" ${checked(row.can_view_their_moments)} /> 允许我看对方朋友圈</label>
