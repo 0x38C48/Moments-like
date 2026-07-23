@@ -77,12 +77,13 @@
             <h2 id="pageTitle">朋友圈</h2>
             <p id="statusText">后端 API：http://127.0.0.1:5000</p>
           </div>
-          <button class="ghost" id="healthBtn">检测 MySQL 连接</button>
+          <div class="topbar-actions">
+            <button class="icon-button primary" id="toggleComposerBtn" title="发布朋友圈" aria-label="发布朋友圈">+</button>
+          </div>
         </header>
 
         <section class="view" id="profile">
           <div class="toolbar">
-            <button id="loadProfileBtn">刷新资料</button>
             <button class="secondary" id="saveProfileBtn">保存资料</button>
           </div>
           <div class="form-grid">
@@ -104,7 +105,6 @@
           <div class="toolbar">
             <input id="searchKeyword" placeholder="按微信号或昵称搜索用户" />
             <button id="searchUserBtn">搜索</button>
-            <button class="secondary" id="loadFriendsBtn">好友列表</button>
             <button class="secondary" id="loadRequestsBtn">好友申请</button>
           </div>
           <div class="split">
@@ -120,9 +120,6 @@
         </section>
 
         <section class="view" id="chat">
-          <div class="toolbar">
-            <button id="loadConversationsBtn">刷新会话</button>
-          </div>
           <div class="split chat-layout">
             <div>
               <h3>会话</h3>
@@ -144,7 +141,11 @@
         </section>
 
         <section class="view active" id="moments">
-          <div class="composer">
+          <div class="composer hidden" id="momentComposer">
+            <div class="composer-head">
+              <h3>发布朋友圈</h3>
+              <button class="icon-button ghost" id="closeComposerBtn" title="收起" aria-label="收起发布面板">×</button>
+            </div>
             <textarea id="momentContent" placeholder="这一刻的想法..."></textarea>
             <label class="upload-box">
               <span>朋友圈图片</span>
@@ -160,7 +161,6 @@
               </select>
               <input id="momentLocation" placeholder="位置" />
               <button id="publishMomentBtn">发布</button>
-              <button class="secondary" id="loadMomentsBtn">刷新朋友圈</button>
             </div>
           </div>
           <div class="feed" id="momentList"></div>

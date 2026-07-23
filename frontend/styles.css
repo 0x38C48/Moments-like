@@ -30,12 +30,18 @@ textarea {
 }
 
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   border: 0;
   border-radius: 6px;
   background: var(--primary);
   color: white;
-  padding: 9px 14px;
+  min-height: 38px;
+  padding: 0 14px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 button:hover {
@@ -50,6 +56,16 @@ button.ghost {
   border: 1px solid var(--line);
   background: white;
   color: var(--ink);
+}
+
+.icon-button {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 24px;
+  line-height: 1;
 }
 
 input,
@@ -261,6 +277,12 @@ textarea {
   margin-bottom: 18px;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .topbar h2 {
   margin: 0;
   font-size: 24px;
@@ -362,7 +384,8 @@ h3 {
 }
 
 .actions button {
-  padding: 6px 9px;
+  min-height: 32px;
+  padding: 0 10px;
   font-size: 13px;
 }
 
@@ -505,6 +528,29 @@ h3 {
 
 .composer {
   margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfc;
+  padding: 14px;
+}
+
+.composer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.composer-head h3 {
+  margin: 0;
+}
+
+.composer-head .icon-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  font-size: 20px;
 }
 
 .upload-box {

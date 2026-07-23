@@ -59,6 +59,7 @@ function setUser(user) {
     state.conversationTitle = "";
     clearUserScopedViews();
   }
+  updateTopbarActions();
 }
 
 function clearUserScopedViews() {
@@ -94,7 +95,27 @@ function switchTab(tabId) {
   });
   const activeButton = document.querySelector(`[data-tab="${tabId}"]`);
   $("pageTitle").textContent = activeButton.dataset.title || activeButton.textContent.trim();
+  updateTopbarActions();
   refreshActiveTab().catch((error) => toast(error.message));
+}
+
+function updateTopbarActions() {
+  const shouldShowComposerButton = state.activeTab === "moments" && Boolean(state.user);
+  $("toggleComposerBtn").classList.toggle("hidden", !shouldShowComposerButton);
+  if (!shouldShowComposerButton) closeMomentComposer();
+}
+
+function openMomentComposer() {
+  $("momentComposer").classList.remove("hidden");
+  $("momentContent").focus();
+}
+
+function closeMomentComposer() {
+  $("momentComposer").classList.add("hidden");
+}
+
+function toggleMomentComposer() {
+  $("momentComposer").classList.contains("hidden") ? openMomentComposer() : closeMomentComposer();
 }
 
 function applySidebarState() {
@@ -472,6 +493,7 @@ async function publishMoment() {
   $("momentContent").value = "";
   $("momentImages").value = "";
   $("momentPreview").innerHTML = "";
+  closeMomentComposer();
   toast("朋友圈已发布");
   await loadMoments();
 }
@@ -545,30 +567,18 @@ async function loadStats(kind) {
   renderTable(rows);
 }
 
-async function health() {
-  const result = await request("/health");
-  $("statusText").textContent = `MySQL：${result.database_name} · ${result.server_time}`;
-  toast("后端和 MySQL 连接正常");
-}
-
 function bindEvents() {
   $("loginBtn").addEventListener("click", () => login().catch((error) => toast(error.message)));
   $("logoutBtn").addEventListener("click", () => setUser(null));
   $("sidebarToggle").addEventListener("click", toggleSidebar);
-  $("healthBtn").addEventListener("click", () => health().catch((error) => toast(error.message)));
-  $("loadProfileBtn").addEventListener("click", () => loadProfile().catch((error) => toast(error.message)));
+  $("toggleComposerBtn").addEventListener("click", toggleMomentComposer);
+  $("closeComposerBtn").addEventListener("click", closeMomentComposer);
   $("saveProfileBtn").addEventListener("click", () => saveProfile().catch((error) => toast(error.message)));
   $("searchUserBtn").addEventListener("click", () => searchUsers().catch((error) => toast(error.message)));
-  $("loadFriendsBtn").addEventListener("click", () => {
-    hideFriendAuxPanel();
-    loadFriends().catch((error) => toast(error.message));
-  });
   $("loadRequestsBtn").addEventListener("click", () => loadRequests().catch((error) => toast(error.message)));
-  $("loadConversationsBtn").addEventListener("click", () => loadConversations().catch((error) => toast(error.message)));
   $("searchMessagesBtn").addEventListener("click", () => loadMessages().catch((error) => toast(error.message)));
   $("sendMessageBtn").addEventListener("click", () => sendMessage().catch((error) => toast(error.message)));
   $("publishMomentBtn").addEventListener("click", () => publishMoment().catch((error) => toast(error.message)));
-  $("loadMomentsBtn").addEventListener("click", () => loadMoments().catch((error) => toast(error.message)));
   $("momentImages").addEventListener("change", previewMomentImages);
 
   document.querySelector(".tabs").addEventListener("click", (event) => {
@@ -619,6 +629,7 @@ function bindEvents() {
 bindEvents();
 applySidebarState();
 setUser(state.user);
+updateTopbarActions();
 if (state.user) {
   refreshAllData().catch(() => {});
 }
