@@ -37,8 +37,14 @@ function requireLogin() {
 }
 
 function setUser(user) {
+  const previousUserId = state.user?.user_id;
   state.user = user;
   if (user) {
+    if (previousUserId !== user.user_id) {
+      state.conversationId = null;
+      state.conversationTitle = "";
+      clearUserScopedViews();
+    }
     localStorage.setItem("momentsUser", JSON.stringify(user));
     $("loginPanel").classList.add("hidden");
     $("userCard").classList.remove("hidden");
@@ -49,7 +55,33 @@ function setUser(user) {
     localStorage.removeItem("momentsUser");
     $("loginPanel").classList.remove("hidden");
     $("userCard").classList.add("hidden");
+    state.conversationId = null;
+    state.conversationTitle = "";
+    clearUserScopedViews();
   }
+}
+
+function clearUserScopedViews() {
+  $("friendList").innerHTML = "";
+  $("userList").innerHTML = "";
+  $("conversationList").innerHTML = "";
+  $("messageList").innerHTML = "";
+  $("momentList").innerHTML = "";
+  $("statsTable").innerHTML = "";
+  $("chatPeerTitle").textContent = "消息";
+  hideFriendAuxPanel();
+}
+
+async function refreshAllData() {
+  const user = requireLogin();
+  const profilePromise = loadProfile();
+  const friendsPromise = loadFriends();
+  const conversationsPromise = loadConversations();
+  const momentsPromise = loadMoments();
+  const statsPromise = loadStats("messages");
+  await Promise.all([profilePromise, friendsPromise, conversationsPromise, momentsPromise, statsPromise]);
+  if (state.conversationId) await loadMessages();
+  return user;
 }
 
 function switchTab(tabId) {
@@ -156,8 +188,7 @@ async function login() {
   });
   setUser(user);
   toast("登录成功");
-  await loadProfile();
-  await Promise.all([loadFriends(), loadConversations(), loadMoments()]);
+  await refreshAllData();
 }
 
 async function loadProfile() {
@@ -589,8 +620,5 @@ bindEvents();
 applySidebarState();
 setUser(state.user);
 if (state.user) {
-  loadProfile().catch(() => {});
-  loadFriends().catch(() => {});
-  loadConversations().catch(() => {});
-  loadMoments().catch(() => {});
+  refreshAllData().catch(() => {});
 }
