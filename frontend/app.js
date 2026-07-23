@@ -288,7 +288,10 @@ async function loadFriends(starredOnly = state.friendFilter === "starred", optio
         <div class="friend-info">
           <header>
             <strong>${displayName}</strong>
-            <span class="meta">${row.is_starred ? "星标" : ""}${row.status === "blocked" ? " · 已拉黑" : ""}</span>
+            <span class="friend-badges">
+              ${row.is_starred ? `<span class="star-badge" title="星标朋友">★</span>` : ""}
+              ${row.status === "blocked" ? `<span class="blocked-badge">已拉黑</span>` : ""}
+            </span>
           </header>
           <div class="meta">${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}${row.signature ? ` · ${row.signature}` : ""}</div>
           <p class="friend-moment">${latestMomentText(row)}</p>
