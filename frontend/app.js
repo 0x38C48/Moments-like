@@ -82,10 +82,23 @@ function toggleSidebar() {
 async function refreshActiveTab() {
   if (!state.user) return;
   if (state.activeTab === "profile") await loadProfile();
-  if (state.activeTab === "friends") await Promise.all([loadFriends(), loadRequests()]);
+  if (state.activeTab === "friends") {
+    hideFriendAuxPanel();
+    await loadFriends();
+  }
   if (state.activeTab === "chat") await loadConversations();
   if (state.activeTab === "moments") await loadMoments();
   if (state.activeTab === "stats") await loadStats("messages");
+}
+
+function showFriendAuxPanel(title) {
+  $("friendAuxTitle").textContent = title;
+  $("friendAuxPanel").classList.remove("hidden");
+}
+
+function hideFriendAuxPanel() {
+  $("friendAuxPanel").classList.add("hidden");
+  $("userList").innerHTML = "";
 }
 
 function card(html) {
@@ -158,6 +171,7 @@ async function saveProfile() {
 
 async function searchUsers() {
   const user = requireLogin();
+  showFriendAuxPanel("搜索结果");
   const rows = await request(
     `/users/search?current_user_id=${user.user_id}&keyword=${encodeURIComponent($("searchKeyword").value)}`
   );
@@ -197,6 +211,7 @@ async function loadFriends() {
 
 async function loadRequests() {
   const user = requireLogin();
+  showFriendAuxPanel("好友申请");
   const rows = await request(`/friends/requests/${user.user_id}`);
   const list = $("userList");
   list.innerHTML = "";
@@ -463,7 +478,10 @@ function bindEvents() {
   $("loadProfileBtn").addEventListener("click", () => loadProfile().catch((error) => toast(error.message)));
   $("saveProfileBtn").addEventListener("click", () => saveProfile().catch((error) => toast(error.message)));
   $("searchUserBtn").addEventListener("click", () => searchUsers().catch((error) => toast(error.message)));
-  $("loadFriendsBtn").addEventListener("click", () => loadFriends().catch((error) => toast(error.message)));
+  $("loadFriendsBtn").addEventListener("click", () => {
+    hideFriendAuxPanel();
+    loadFriends().catch((error) => toast(error.message));
+  });
   $("loadRequestsBtn").addEventListener("click", () => loadRequests().catch((error) => toast(error.message)));
   $("loadConversationsBtn").addEventListener("click", () => loadConversations().catch((error) => toast(error.message)));
   $("searchMessagesBtn").addEventListener("click", () => loadMessages().catch((error) => toast(error.message)));
