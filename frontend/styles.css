@@ -315,6 +315,33 @@ textarea {
   margin-bottom: 8px;
 }
 
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+
+.segmented button {
+  min-height: 36px;
+  border-radius: 0;
+  border-right: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+}
+
+.segmented button:last-child {
+  border-right: 0;
+}
+
+.segmented button.active {
+  background: var(--primary);
+  color: white;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

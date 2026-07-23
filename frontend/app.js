@@ -5,6 +5,7 @@ const state = {
   conversationId: null,
   conversationTitle: "",
   activeTab: "moments",
+  friendFilter: "all",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -137,7 +138,7 @@ async function refreshActiveTab() {
   if (state.activeTab === "profile") await loadProfile();
   if (state.activeTab === "friends") {
     hideFriendAuxPanel();
-    await loadFriends();
+    await loadFriends(state.friendFilter === "starred");
   }
   if (state.activeTab === "chat") await loadConversations();
   if (state.activeTab === "moments") await loadMoments();
@@ -152,6 +153,13 @@ function showFriendAuxPanel(title) {
 function hideFriendAuxPanel() {
   $("friendAuxPanel").classList.add("hidden");
   $("userList").innerHTML = "";
+}
+
+function setFriendFilter(filter) {
+  state.friendFilter = filter;
+  document.querySelectorAll("[data-friend-filter]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.friendFilter === filter);
+  });
 }
 
 function card(html) {
@@ -258,12 +266,15 @@ async function searchUsers() {
   });
 }
 
-async function loadFriends() {
+async function loadFriends(starredOnly = state.friendFilter === "starred", options = {}) {
   const user = requireLogin();
-  const rows = await request(`/friends/${user.user_id}`);
+  if (!options.preserveFilter) setFriendFilter(starredOnly ? "starred" : "all");
+  if (!options.preserveAux) hideFriendAuxPanel();
+  const query = starredOnly ? "?starred=1" : "";
+  const rows = await request(`/friends/${user.user_id}${query}`);
   const list = $("friendList");
   list.innerHTML = "";
-  if (!rows.length) return renderEmpty(list);
+  if (!rows.length) return renderEmpty(list, starredOnly ? "暂无星标朋友" : "暂无好友");
   rows.forEach((row) => {
     const remark = displayFriendRemark(row);
     const displayName = remark || row.nickname || row.wechat_id;
@@ -303,6 +314,7 @@ async function loadFriends() {
 
 async function loadRequests() {
   const user = requireLogin();
+  setFriendFilter("requests");
   showFriendAuxPanel("好友申请");
   const rows = await request(`/friends/requests/${user.user_id}`);
   const list = $("userList");
@@ -338,7 +350,7 @@ async function handleFriendRequest(friendshipId, status) {
   });
   toast("好友申请已处理");
   await loadRequests();
-  await loadFriends();
+  await loadFriends(false, { preserveAux: true, preserveFilter: true });
 }
 
 function togglePermissionPanel(friendshipId) {
@@ -364,7 +376,7 @@ async function savePermissions(friendshipId) {
     }),
   });
   toast("朋友权限已保存");
-  await loadFriends();
+  await loadFriends(state.friendFilter === "starred");
 }
 
 async function createPrivateConversation(friendId, friendName = "") {
@@ -575,6 +587,8 @@ function bindEvents() {
   $("closeComposerBtn").addEventListener("click", closeMomentComposer);
   $("saveProfileBtn").addEventListener("click", () => saveProfile().catch((error) => toast(error.message)));
   $("searchUserBtn").addEventListener("click", () => searchUsers().catch((error) => toast(error.message)));
+  $("showAllFriendsBtn").addEventListener("click", () => loadFriends(false).catch((error) => toast(error.message)));
+  $("showStarredFriendsBtn").addEventListener("click", () => loadFriends(true).catch((error) => toast(error.message)));
   $("loadRequestsBtn").addEventListener("click", () => loadRequests().catch((error) => toast(error.message)));
   $("searchMessagesBtn").addEventListener("click", () => loadMessages().catch((error) => toast(error.message)));
   $("sendMessageBtn").addEventListener("click", () => sendMessage().catch((error) => toast(error.message)));

@@ -207,9 +207,11 @@ def search_users():
 
 @app.get("/api/friends/<int:user_id>")
 def friends(user_id: int):
+    starred_only = request.args.get("starred") == "1"
+    starred_clause = "AND f.is_starred = 1" if starred_only else ""
     with Database() as db:
         rows = db.query(
-            """
+            f"""
             SELECT
               f.friendship_id,
               CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END AS friend_id,
@@ -252,6 +254,7 @@ def friends(user_id: int):
             JOIN user_profiles p ON p.user_id = u.user_id
             WHERE (f.requester_id = %s OR f.addressee_id = %s)
               AND f.status IN ('accepted', 'blocked')
+              {starred_clause}
             ORDER BY f.is_starred DESC, p.nickname
             """,
             (user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id),

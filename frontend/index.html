@@ -105,7 +105,11 @@
           <div class="toolbar">
             <input id="searchKeyword" placeholder="按微信号或昵称搜索用户" />
             <button id="searchUserBtn">搜索</button>
-            <button class="secondary" id="loadRequestsBtn">好友申请</button>
+            <div class="segmented" aria-label="好友筛选">
+              <button class="active" id="showAllFriendsBtn" data-friend-filter="all">全部</button>
+              <button id="showStarredFriendsBtn" data-friend-filter="starred">星标</button>
+              <button id="loadRequestsBtn" data-friend-filter="requests">申请</button>
+            </div>
           </div>
           <div class="split">
             <div>
