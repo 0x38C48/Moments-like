@@ -4,7 +4,7 @@ const state = {
   user: JSON.parse(localStorage.getItem("momentsUser") || "null"),
   conversationId: null,
   conversationTitle: "",
-  activeTab: "profile",
+  activeTab: "moments",
 };
 
 const $ = (id) => document.getElementById(id);
