@@ -71,6 +71,7 @@ function clearUserScopedViews() {
   $("momentList").innerHTML = "";
   $("statsTable").innerHTML = "";
   $("chatPeerTitle").textContent = "消息";
+  closeHistoryDrawer();
   hideFriendAuxPanel();
 }
 
@@ -117,6 +118,15 @@ function closeMomentComposer() {
 
 function toggleMomentComposer() {
   $("momentComposer").classList.contains("hidden") ? openMomentComposer() : closeMomentComposer();
+}
+
+function openHistoryDrawer() {
+  $("historyDrawer").classList.remove("hidden");
+  $("messageKeyword").focus();
+}
+
+function closeHistoryDrawer() {
+  $("historyDrawer").classList.add("hidden");
 }
 
 function applySidebarState() {
@@ -588,6 +598,8 @@ function bindEvents() {
   $("sidebarToggle").addEventListener("click", toggleSidebar);
   $("toggleComposerBtn").addEventListener("click", toggleMomentComposer);
   $("closeComposerBtn").addEventListener("click", closeMomentComposer);
+  $("openHistoryBtn").addEventListener("click", openHistoryDrawer);
+  $("closeHistoryBtn").addEventListener("click", closeHistoryDrawer);
   $("saveProfileBtn").addEventListener("click", () => saveProfile().catch((error) => toast(error.message)));
   $("searchUserBtn").addEventListener("click", () => searchUsers().catch((error) => toast(error.message)));
   $("showAllFriendsBtn").addEventListener("click", () => loadFriends(false).catch((error) => toast(error.message)));
@@ -616,6 +628,10 @@ function bindEvents() {
 
     const target = event.target.closest("button");
     if (!target) return;
+    if (target.dataset.tab) {
+      switchTab(target.dataset.tab);
+      return;
+    }
     if (target.dataset.add) addFriend(target.dataset.add).catch((error) => toast(error.message));
     if (target.dataset.accept) handleFriendRequest(target.dataset.accept, "accepted").catch((error) => toast(error.message));
     if (target.dataset.reject) handleFriendRequest(target.dataset.reject, "rejected").catch((error) => toast(error.message));

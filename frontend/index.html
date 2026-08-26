@@ -10,7 +10,7 @@
     <main class="shell" id="appShell">
       <aside class="sidebar">
         <section class="brand">
-          <div class="brand-mark">M</div>
+          <img class="brand-mark" src="./assets/app-icon.png" alt="Moments-like 图标" />
           <div class="brand-copy">
             <h1>Moments-like</h1>
             <p>个人资料与聊天记录管理系统</p>
@@ -32,9 +32,14 @@
 
         <section class="user-card hidden" id="userCard">
           <div class="avatar" id="avatar">U</div>
-          <strong id="nickname">未登录</strong>
-          <span id="wechatId"></span>
-          <button class="ghost" id="logoutBtn">退出登录</button>
+          <div class="user-copy">
+            <strong id="nickname">未登录</strong>
+            <span id="wechatId"></span>
+          </div>
+          <div class="user-actions">
+            <button class="user-link" data-tab="profile" title="资料">资料</button>
+            <button class="user-link" id="logoutBtn">退出</button>
+          </div>
         </section>
 
         <nav class="tabs">
@@ -61,12 +66,6 @@
               <svg viewBox="0 0 24 24"><path d="M4 19V5" /><path d="M4 19h16" /><path d="M8 16v-5" /><path d="M12 16V8" /><path d="M16 16v-3" /></svg>
             </span>
             <span class="nav-label">统计</span>
-          </button>
-          <button data-tab="profile" data-title="资料" title="资料">
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0" /><circle cx="12" cy="7" r="4" /></svg>
-            </span>
-            <span class="nav-label">资料</span>
           </button>
         </nav>
       </aside>
@@ -131,17 +130,27 @@
             </div>
             <div>
               <h3 id="chatPeerTitle">消息</h3>
-              <div class="toolbar compact">
-                <input id="messageKeyword" placeholder="消息关键词" />
-                <button id="searchMessagesBtn">检索</button>
-              </div>
               <div class="message-box" id="messageList"></div>
               <div class="send-row">
                 <input id="messageContent" placeholder="输入消息内容" />
+                <button class="icon-button ghost" id="openHistoryBtn" title="检索聊天记录" aria-label="检索聊天记录">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /><path d="M12 7v5l3 2" /></svg>
+                </button>
                 <button id="sendMessageBtn">发送</button>
               </div>
             </div>
           </div>
+          <aside class="history-drawer hidden" id="historyDrawer" aria-label="聊天记录检索">
+            <div class="drawer-head">
+              <h3>聊天记录</h3>
+              <button class="icon-button ghost" id="closeHistoryBtn" title="关闭" aria-label="关闭聊天记录检索">×</button>
+            </div>
+            <div class="drawer-search">
+              <input id="messageKeyword" placeholder="搜索当前会话" />
+              <button id="searchMessagesBtn">搜索</button>
+            </div>
+            <div class="drawer-hint">输入关键词后只筛选当前打开的会话。</div>
+          </aside>
         </section>
 
         <section class="view active" id="moments">
