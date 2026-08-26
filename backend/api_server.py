@@ -129,7 +129,7 @@ def login():
     wechat_id = body.get("wechat_id", "").strip()
     password = body.get("password", "")
     if not wechat_id or not password:
-        return fail("微信号和密码不能为空")
+        return fail("账号和密码不能为空")
     with Database() as db:
         row = db.one(
             """
@@ -192,15 +192,21 @@ def search_users():
     with Database() as db:
         rows = db.query(
             """
-            SELECT u.user_id, u.wechat_id, p.nickname, p.gender, p.region, p.signature, p.avatar_url
+            SELECT u.user_id, u.wechat_id, u.phone, p.nickname, p.gender, p.region, p.signature, p.avatar_url
             FROM users u
             JOIN user_profiles p ON p.user_id = u.user_id
             WHERE u.user_id <> %s
-              AND (u.wechat_id LIKE %s OR p.nickname LIKE %s)
+              AND (u.wechat_id LIKE %s OR u.phone LIKE %s)
+              AND NOT EXISTS (
+                SELECT 1
+                FROM friendships f
+                WHERE (f.requester_id = %s AND f.addressee_id = u.user_id)
+                   OR (f.addressee_id = %s AND f.requester_id = u.user_id)
+              )
             ORDER BY u.user_id
             LIMIT 20
             """,
-            (current_user_id, keyword, keyword),
+            (current_user_id, keyword, keyword, current_user_id, current_user_id),
         )
     return ok(rows)
 

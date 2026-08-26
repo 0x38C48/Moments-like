@@ -311,8 +311,12 @@ function renderTable(rows) {
     return;
   }
   const columns = Object.keys(rows[0]).filter((col) => col !== "user_id");
+  const headerLabels = {
+    wechat_id: "账号",
+    nickname: "昵称",
+  };
   table.innerHTML = `
-    <thead><tr>${columns.map((col) => `<th>${col}</th>`).join("")}</tr></thead>
+    <thead><tr>${columns.map((col) => `<th>${headerLabels[col] || col}</th>`).join("")}</tr></thead>
     <tbody>
       ${rows
         .map((row) => `<tr>${columns.map((col) => `<td>${row[col] ?? ""}</td>`).join("")}</tr>`)
@@ -371,7 +375,7 @@ async function loadProfile(userId = null) {
   $("profileModeText").textContent = isSelf ? "我的资料" : "好友资料";
   $("profileMomentsTitle").textContent = isSelf ? "我的朋友圈" : `${profile.nickname || "ta"} 的朋友圈`;
   $("profileInfoGrid").innerHTML = `
-    <div><span>微信号</span><strong>${profile.wechat_id}</strong></div>
+    <div><span>账号</span><strong>${profile.wechat_id}</strong></div>
     <div><span>地区</span><strong>${profile.region || "未填写"}</strong></div>
     <div><span>性别</span><strong>${profile.gender || "unknown"}</strong></div>
     <div><span>手机号</span><strong>${isSelf ? profile.phone || "未填写" : "仅本人可见"}</strong></div>
@@ -411,7 +415,7 @@ async function saveProfile() {
 
 async function searchUsers() {
   const user = requireLogin();
-  showFriendAuxPanel("搜索结果");
+  showFriendAuxPanel("非好友搜索");
   const rows = await request(
     `/users/search?current_user_id=${user.user_id}&keyword=${encodeURIComponent($("searchKeyword").value)}`
   );
@@ -424,7 +428,7 @@ async function searchUsers() {
         ${avatarMarkup(row, row.nickname || row.wechat_id, "friend-avatar", row.user_id)}
         <div class="friend-info">
           <header><strong>${row.nickname}</strong></header>
-          <div class="meta">${row.wechat_id} · ${row.region || ""}</div>
+          <div class="meta">账号 ${row.wechat_id}${row.phone ? ` · 手机 ${row.phone}` : ""}${row.region ? ` · ${row.region}` : ""}</div>
           <p>${row.signature || ""}</p>
         </div>
       </div>
@@ -461,7 +465,7 @@ async function loadFriends(starredOnly = state.friendFilter === "starred", optio
               ${row.status === "blocked" ? `<span class="blocked-badge">已拉黑</span>` : ""}
             </span>
           </header>
-          <div class="meta">${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}${row.signature ? ` · ${row.signature}` : ""}</div>
+          <div class="meta">账号 ${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}${row.signature ? ` · ${row.signature}` : ""}</div>
           <p class="friend-moment">${latestMomentText(row)}</p>
         </div>
       </div>
@@ -488,7 +492,7 @@ async function loadRequests() {
   if (!rows.length) return renderEmpty(list, "暂无待处理好友申请");
   rows.forEach((row) => {
     const node = card(`
-      <header><strong>${row.nickname}</strong><span class="meta">${row.wechat_id}</span></header>
+      <header><strong>${row.nickname}</strong><span class="meta">账号 ${row.wechat_id}</span></header>
       <div class="meta">申请编号 ${row.friendship_id} · ${row.created_at}</div>
       <div class="actions">
         <button data-accept="${row.friendship_id}">同意</button>
@@ -536,7 +540,7 @@ function renderFriendDetail(friendId) {
   detailAvatar.dataset.profileId = row.friend_id;
   detailAvatar.innerHTML = `${row.avatar_url ? `<img src="${row.avatar_url}" alt="${displayName}头像" onerror="this.style.display='none'" />` : ""}<span>${(displayName || "U").slice(0, 1).toUpperCase()}</span>`;
   $("friendDetailName").textContent = displayName;
-  $("friendDetailMeta").textContent = `${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}`;
+  $("friendDetailMeta").textContent = `账号 ${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}`;
   $("friendDetailSignature").textContent = row.signature || "这个人还没有留下个性签名";
   $("friendLastMoment").textContent = latestMomentText(row);
   $("friendProfileBtn").dataset.profileId = row.friend_id;
