@@ -82,42 +82,101 @@
         </header>
 
         <section class="view" id="profile">
-          <div class="toolbar">
-            <button class="secondary" id="saveProfileBtn">保存资料</button>
-          </div>
-          <div class="form-grid">
-            <label>昵称<input id="profileNickname" /></label>
-            <label>性别
-              <select id="profileGender">
-                <option value="unknown">unknown</option>
-                <option value="male">male</option>
-                <option value="female">female</option>
-              </select>
-            </label>
-            <label>地区<input id="profileRegion" /></label>
-            <label>手机号<input id="profilePhone" disabled /></label>
-            <label class="wide">个性签名<input id="profileSignature" /></label>
+          <div class="profile-layout">
+            <div class="profile-hero">
+              <div class="profile-avatar" id="profileAvatar">U</div>
+              <div class="profile-identity">
+                <span class="meta" id="profileModeText">个人资料</span>
+                <h3 id="profileDisplayName">未登录</h3>
+                <p id="profileSignatureText">暂无个性签名</p>
+              </div>
+              <div class="profile-actions">
+                <button class="secondary hidden" id="profileChatBtn">发消息</button>
+                <button class="ghost" id="profileMomentsBtn">ta 的朋友圈</button>
+              </div>
+            </div>
+            <div class="profile-info-grid" id="profileInfoGrid"></div>
+            <div class="profile-editor" id="profileEditor">
+              <div class="section-head">
+                <h3>编辑资料</h3>
+                <button class="secondary" id="saveProfileBtn">保存</button>
+              </div>
+              <div class="form-grid">
+                <label>昵称<input id="profileNickname" /></label>
+                <label>性别
+                  <select id="profileGender">
+                    <option value="unknown">unknown</option>
+                    <option value="male">male</option>
+                    <option value="female">female</option>
+                  </select>
+                </label>
+                <label>地区<input id="profileRegion" /></label>
+                <label>手机号<input id="profilePhone" disabled /></label>
+                <label class="wide">个性签名<input id="profileSignature" /></label>
+              </div>
+            </div>
+            <div class="profile-moments">
+              <div class="section-head">
+                <h3 id="profileMomentsTitle">个人朋友圈</h3>
+              </div>
+              <div class="feed compact-feed" id="profileMomentList"></div>
+            </div>
           </div>
         </section>
 
         <section class="view" id="friends">
-          <div class="toolbar">
-            <input id="searchKeyword" placeholder="按微信号或昵称搜索用户" />
-            <button id="searchUserBtn">搜索</button>
-            <div class="segmented" aria-label="好友筛选">
-              <button class="active" id="showAllFriendsBtn" data-friend-filter="all">全部</button>
-              <button id="showStarredFriendsBtn" data-friend-filter="starred">★ 星标</button>
-              <button id="loadRequestsBtn" data-friend-filter="requests">申请</button>
+          <div class="friends-shell">
+            <div class="friends-list-pane">
+              <div class="friend-tools">
+                <div class="friend-search">
+                  <input id="searchKeyword" placeholder="搜索用户或好友" />
+                  <button id="searchUserBtn">搜索</button>
+                </div>
+                <div class="soft-filters" aria-label="好友筛选">
+                  <button class="active" id="showAllFriendsBtn" data-friend-filter="all">全部</button>
+                  <button id="showStarredFriendsBtn" data-friend-filter="starred">星标</button>
+                  <button id="loadRequestsBtn" data-friend-filter="requests">申请</button>
+                </div>
+              </div>
+              <div class="list friend-list" id="friendList"></div>
             </div>
-          </div>
-          <div class="split">
-            <div>
-              <h3>好友列表</h3>
-              <div class="list" id="friendList"></div>
-            </div>
-            <div class="hidden" id="friendAuxPanel">
-              <h3 id="friendAuxTitle">搜索结果</h3>
-              <div class="list" id="userList"></div>
+            <div class="friend-detail-pane" id="friendDetailPane">
+              <div class="friend-detail-empty" id="friendDetailEmpty">选择一位好友查看资料和聊天</div>
+              <div class="friend-detail hidden" id="friendDetail">
+                <div class="mini-profile">
+                  <div class="friend-avatar large" id="friendDetailAvatar">U</div>
+                  <div>
+                    <h3 id="friendDetailName">好友</h3>
+                    <p class="meta" id="friendDetailMeta"></p>
+                    <p id="friendDetailSignature"></p>
+                  </div>
+                  <div class="mini-actions">
+                    <button class="ghost" id="friendProfileBtn">资料</button>
+                    <button class="ghost" id="friendMomentsBtn">朋友圈</button>
+                    <button class="ghost" id="friendManageBtn">管理</button>
+                  </div>
+                </div>
+                <div class="friend-last-moment" id="friendLastMoment"></div>
+                <div class="permission-panel hidden" id="friendPermissionPanel"></div>
+                <div class="mini-chat">
+                  <div class="section-head">
+                    <h3>聊天</h3>
+                    <button class="ghost" id="openFullChatBtn">打开完整聊天</button>
+                  </div>
+                  <div class="message-box mini-message-box" id="miniMessageList"></div>
+                  <div class="send-row mini-send-row">
+                    <input id="miniMessageContent" placeholder="输入消息" />
+                    <button id="miniSendMessageBtn">发送</button>
+                  </div>
+                </div>
+              </div>
+              <div class="friend-aux-drawer hidden" id="friendAuxPanel">
+                <div class="drawer-head">
+                  <h3 id="friendAuxTitle">搜索结果</h3>
+                  <button class="icon-button ghost" id="closeFriendAuxBtn" title="关闭" aria-label="关闭">×</button>
+                </div>
+                <div class="list" id="userList"></div>
+              </div>
             </div>
           </div>
         </section>

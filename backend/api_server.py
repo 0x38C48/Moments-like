@@ -192,7 +192,7 @@ def search_users():
     with Database() as db:
         rows = db.query(
             """
-            SELECT u.user_id, u.wechat_id, p.nickname, p.gender, p.region, p.signature
+            SELECT u.user_id, u.wechat_id, p.nickname, p.gender, p.region, p.signature, p.avatar_url
             FROM users u
             JOIN user_profiles p ON p.user_id = u.user_id
             WHERE u.user_id <> %s
@@ -369,7 +369,30 @@ def conversations(user_id: int):
         rows = db.query(
             """
             SELECT c.conversation_id, c.conversation_type, c.title,
-                   COUNT(cm2.user_id) AS member_count, c.last_message_at
+                   COUNT(cm2.user_id) AS member_count, c.last_message_at,
+                   CASE WHEN c.conversation_type = 'private' THEN (
+                     SELECT cm_other.user_id
+                     FROM conversation_members cm_other
+                     WHERE cm_other.conversation_id = c.conversation_id
+                       AND cm_other.user_id <> %s
+                     LIMIT 1
+                   ) END AS private_peer_id,
+                   CASE WHEN c.conversation_type = 'private' THEN (
+                     SELECT up.nickname
+                     FROM conversation_members cm_other
+                     JOIN user_profiles up ON up.user_id = cm_other.user_id
+                     WHERE cm_other.conversation_id = c.conversation_id
+                       AND cm_other.user_id <> %s
+                     LIMIT 1
+                   ) END AS private_peer_name,
+                   CASE WHEN c.conversation_type = 'private' THEN (
+                     SELECT up.avatar_url
+                     FROM conversation_members cm_other
+                     JOIN user_profiles up ON up.user_id = cm_other.user_id
+                     WHERE cm_other.conversation_id = c.conversation_id
+                       AND cm_other.user_id <> %s
+                     LIMIT 1
+                   ) END AS private_peer_avatar
             FROM conversations c
             JOIN conversation_members cm ON cm.conversation_id = c.conversation_id
             JOIN conversation_members cm2 ON cm2.conversation_id = c.conversation_id
@@ -378,7 +401,7 @@ def conversations(user_id: int):
             ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
             LIMIT 20
             """,
-            (user_id,),
+            (user_id, user_id, user_id, user_id),
         )
     return ok(rows)
 
@@ -480,11 +503,16 @@ def send_message():
 
 @app.get("/api/moments/<int:user_id>")
 def moments(user_id: int):
+    author_id = int(request.args.get("author_id", "0") or "0")
+    author_clause = "AND mp.author_id = %s" if author_id else ""
+    params: list[Any] = [user_id, user_id, user_id, user_id]
+    if author_id:
+        params.append(author_id)
     with Database() as db:
         rows = db.query(
-            """
-            SELECT DISTINCT mp.post_id, mp.author_id, up.nickname AS author, mp.content, mp.visibility_type,
-                   mp.location, mp.created_at,
+            f"""
+            SELECT DISTINCT mp.post_id, mp.author_id, up.nickname AS author, up.avatar_url,
+                   mp.content, mp.visibility_type, mp.location, mp.created_at,
                    COALESCE(s.like_count, 0) AS like_count,
                    COALESCE(s.comment_count, 0) AS comment_count
             FROM moment_posts mp
@@ -503,10 +531,11 @@ def moments(user_id: int):
                 OR (mp.visibility_type = 'selected' AND mv.visible_user_id IS NOT NULL)
                 OR (mp.visibility_type = 'friends' AND f.friendship_id IS NOT NULL)
               )
+              {author_clause}
             ORDER BY mp.created_at DESC
             LIMIT 30
             """,
-            (user_id, user_id, user_id, user_id),
+            tuple(params),
         )
         post_ids = [row["post_id"] for row in rows]
         media_by_post: dict[int, list[dict[str, Any]]] = {post_id: [] for post_id in post_ids}

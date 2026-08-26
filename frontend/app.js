@@ -4,6 +4,11 @@ const state = {
   user: JSON.parse(localStorage.getItem("momentsUser") || "null"),
   conversationId: null,
   conversationTitle: "",
+  profileUserId: null,
+  friends: [],
+  selectedFriendId: null,
+  miniConversationId: null,
+  miniConversationTitle: "",
   activeTab: "moments",
   friendFilter: "all",
 };
@@ -44,6 +49,7 @@ function setUser(user) {
     if (previousUserId !== user.user_id) {
       state.conversationId = null;
       state.conversationTitle = "";
+      state.profileUserId = user.user_id;
       clearUserScopedViews();
     }
     localStorage.setItem("momentsUser", JSON.stringify(user));
@@ -58,6 +64,7 @@ function setUser(user) {
     $("userCard").classList.add("hidden");
     state.conversationId = null;
     state.conversationTitle = "";
+    state.profileUserId = null;
     clearUserScopedViews();
   }
   updateTopbarActions();
@@ -68,10 +75,17 @@ function clearUserScopedViews() {
   $("userList").innerHTML = "";
   $("conversationList").innerHTML = "";
   $("messageList").innerHTML = "";
+  $("miniMessageList").innerHTML = "";
   $("momentList").innerHTML = "";
+  $("profileMomentList").innerHTML = "";
   $("statsTable").innerHTML = "";
   $("historyResults").innerHTML = "";
+  state.friends = [];
+  state.selectedFriendId = null;
+  state.miniConversationId = null;
+  state.miniConversationTitle = "";
   $("chatPeerTitle").textContent = "消息";
+  resetFriendDetail();
   closeHistoryDrawer();
   hideFriendAuxPanel();
 }
@@ -156,7 +170,7 @@ function toggleSidebar() {
 
 async function refreshActiveTab() {
   if (!state.user) return;
-  if (state.activeTab === "profile") await loadProfile();
+  if (state.activeTab === "profile") await loadProfile(state.profileUserId || state.user.user_id);
   if (state.activeTab === "friends") {
     hideFriendAuxPanel();
     await loadFriends(state.friendFilter === "starred");
@@ -194,6 +208,14 @@ function renderEmpty(target, text = "暂无数据") {
   target.innerHTML = `<div class="card meta">${text}</div>`;
 }
 
+function avatarMarkup(row, name, className = "friend-avatar", userId = row.user_id || row.friend_id || row.author_id) {
+  const avatarText = (name || "U").slice(0, 1).toUpperCase();
+  const avatarImage = row.avatar_url
+    ? `<img src="${row.avatar_url}" alt="${name}头像" onerror="this.style.display='none'" />`
+    : "";
+  return `<div class="${className} clickable-avatar" data-profile-id="${userId}" title="查看资料">${avatarImage}<span>${avatarText}</span></div>`;
+}
+
 function renderChatEmpty(text) {
   $("messageList").innerHTML = `<div class="message-empty">${text}</div>`;
 }
@@ -214,12 +236,19 @@ function messageBubble(row, user, extraClass = "") {
   node.className = `message ${ownClass} ${extraClass}`.trim();
   node.innerHTML = `
     <div class="bubble">
-      <strong>${row.sender}</strong>
+      <strong class="clickable-name" data-profile-id="${row.sender_id}">${row.sender}</strong>
       <p>${row.content}</p>
       <span class="meta">${row.sent_at}</span>
     </div>
   `;
   return node;
+}
+
+function resetFriendDetail() {
+  $("friendDetail").classList.add("hidden");
+  $("friendDetailEmpty").classList.remove("hidden");
+  $("friendPermissionPanel").classList.add("hidden");
+  $("friendPermissionPanel").innerHTML = "";
 }
 
 function renderTable(rows) {
@@ -269,14 +298,46 @@ async function login() {
   await refreshAllData();
 }
 
-async function loadProfile() {
+async function openProfile(userId) {
   const user = requireLogin();
-  const profile = await request(`/profile/${user.user_id}`);
-  $("profileNickname").value = profile.nickname || "";
-  $("profileGender").value = profile.gender || "unknown";
-  $("profileRegion").value = profile.region || "";
-  $("profilePhone").value = profile.phone || "";
-  $("profileSignature").value = profile.signature || "";
+  state.profileUserId = Number(userId) || user.user_id;
+  switchTab("profile");
+}
+
+async function loadProfile(userId = null) {
+  const user = requireLogin();
+  const targetUserId = Number(userId) || user.user_id;
+  state.profileUserId = targetUserId;
+  const profile = await request(`/profile/${targetUserId}`);
+  const isSelf = Number(targetUserId) === Number(user.user_id);
+  $("profileAvatar").innerHTML = profile.avatar_url
+    ? `<img src="${profile.avatar_url}" alt="${profile.nickname || profile.wechat_id}头像" onerror="this.style.display='none'" /><span>${(profile.nickname || "U").slice(0, 1).toUpperCase()}</span>`
+    : `<span>${(profile.nickname || "U").slice(0, 1).toUpperCase()}</span>`;
+  $("profileDisplayName").textContent = profile.nickname || profile.wechat_id;
+  $("profileSignatureText").textContent = profile.signature || "暂无个性签名";
+  $("profileModeText").textContent = isSelf ? "我的资料" : "好友资料";
+  $("profileMomentsTitle").textContent = isSelf ? "我的朋友圈" : `${profile.nickname || "ta"} 的朋友圈`;
+  $("profileInfoGrid").innerHTML = `
+    <div><span>微信号</span><strong>${profile.wechat_id}</strong></div>
+    <div><span>用户编号</span><strong>${profile.user_id}</strong></div>
+    <div><span>地区</span><strong>${profile.region || "未填写"}</strong></div>
+    <div><span>性别</span><strong>${profile.gender || "unknown"}</strong></div>
+    <div><span>手机号</span><strong>${isSelf ? profile.phone || "未填写" : "仅本人可见"}</strong></div>
+    <div><span>最近登录</span><strong>${profile.last_login_at || "暂无记录"}</strong></div>
+  `;
+  $("profileEditor").classList.toggle("hidden", !isSelf);
+  $("profileChatBtn").classList.toggle("hidden", isSelf);
+  $("profileChatBtn").dataset.chat = profile.user_id;
+  $("profileChatBtn").dataset.chatName = profile.nickname || profile.wechat_id;
+  $("profileMomentsBtn").textContent = isSelf ? "我的朋友圈" : "ta 的朋友圈";
+  if (isSelf) {
+    $("profileNickname").value = profile.nickname || "";
+    $("profileGender").value = profile.gender || "unknown";
+    $("profileRegion").value = profile.region || "";
+    $("profilePhone").value = profile.phone || "";
+    $("profileSignature").value = profile.signature || "";
+  }
+  await loadProfileMoments(targetUserId);
 }
 
 async function saveProfile() {
@@ -293,6 +354,7 @@ async function saveProfile() {
   state.user.nickname = $("profileNickname").value.trim();
   setUser(state.user);
   toast("资料已保存");
+  await loadProfile(state.user.user_id);
 }
 
 async function searchUsers() {
@@ -306,9 +368,14 @@ async function searchUsers() {
   if (!rows.length) return renderEmpty(list);
   rows.forEach((row) => {
     const node = card(`
-      <header><strong>${row.nickname}</strong><span class="meta">#${row.user_id}</span></header>
-      <div class="meta">${row.wechat_id} · ${row.region || ""}</div>
-      <p>${row.signature || ""}</p>
+      <div class="friend-main">
+        ${avatarMarkup(row, row.nickname || row.wechat_id, "friend-avatar", row.user_id)}
+        <div class="friend-info">
+          <header><strong>${row.nickname}</strong><span class="meta">#${row.user_id}</span></header>
+          <div class="meta">${row.wechat_id} · ${row.region || ""}</div>
+          <p>${row.signature || ""}</p>
+        </div>
+      </div>
       <div class="actions"><button data-add="${row.user_id}">加好友</button></div>
     `);
     list.appendChild(node);
@@ -321,19 +388,19 @@ async function loadFriends(starredOnly = state.friendFilter === "starred", optio
   if (!options.preserveAux) hideFriendAuxPanel();
   const query = starredOnly ? "?starred=1" : "";
   const rows = await request(`/friends/${user.user_id}${query}`);
+  state.friends = rows;
   const list = $("friendList");
   list.innerHTML = "";
-  if (!rows.length) return renderEmpty(list, starredOnly ? "暂无星标朋友" : "暂无好友");
+  if (!rows.length) {
+    resetFriendDetail();
+    return renderEmpty(list, starredOnly ? "暂无星标朋友" : "暂无好友");
+  }
   rows.forEach((row) => {
     const remark = displayFriendRemark(row);
     const displayName = remark || row.nickname || row.wechat_id;
-    const avatarText = (displayName || "U").slice(0, 1).toUpperCase();
-    const avatarImage = row.avatar_url
-      ? `<img src="${row.avatar_url}" alt="${displayName}头像" onerror="this.style.display='none'" />`
-      : "";
     const node = card(`
       <div class="friend-main">
-        <div class="friend-avatar">${avatarImage}<span>${avatarText}</span></div>
+        ${avatarMarkup(row, displayName, "friend-avatar", row.friend_id)}
         <div class="friend-info">
           <header>
             <strong>${displayName}</strong>
@@ -346,22 +413,17 @@ async function loadFriends(starredOnly = state.friendFilter === "starred", optio
           <p class="friend-moment">${latestMomentText(row)}</p>
         </div>
       </div>
-      <div class="actions">
-        <button class="secondary" data-chat="${row.friend_id}" data-chat-name="${row.nickname}">发消息</button>
-        <button data-toggle-permission-panel="${row.friendship_id}">权限设置</button>
-      </div>
-      <div class="permission-panel hidden" id="permission-${row.friendship_id}">
-        <label>好友备注<input data-permission-field="remark" value="${remark}" placeholder="未设置时显示对方昵称" /></label>
-        <label><input type="checkbox" data-permission-field="can_chat" ${checked(row.can_chat)} /> 允许聊天</label>
-        <label><input type="checkbox" data-permission-field="can_view_my_moments" ${checked(row.can_view_my_moments)} /> 允许对方看我的朋友圈</label>
-        <label><input type="checkbox" data-permission-field="can_view_their_moments" ${checked(row.can_view_their_moments)} /> 允许我看对方朋友圈</label>
-        <label><input type="checkbox" data-permission-field="is_starred" ${checked(row.is_starred)} /> 星标朋友</label>
-        <label><input type="checkbox" data-permission-field="blocked" ${row.status === "blocked" ? "checked" : ""} /> 加入黑名单</label>
-        <button data-save-permissions="${row.friendship_id}">保存权限</button>
-      </div>
     `);
+    node.classList.add("friend-card");
+    node.dataset.selectFriend = row.friend_id;
+    if (Number(row.friend_id) === Number(state.selectedFriendId)) node.classList.add("selected");
     list.appendChild(node);
   });
+  if (state.selectedFriendId && rows.some((row) => Number(row.friend_id) === Number(state.selectedFriendId))) {
+    renderFriendDetail(state.selectedFriendId);
+  } else {
+    resetFriendDetail();
+  }
 }
 
 async function loadRequests() {
@@ -405,14 +467,67 @@ async function handleFriendRequest(friendshipId, status) {
   await loadFriends(false, { preserveAux: true, preserveFilter: true });
 }
 
-function togglePermissionPanel(friendshipId) {
-  const panel = $(`permission-${friendshipId}`);
-  if (panel) panel.classList.toggle("hidden");
+function friendById(friendId) {
+  return state.friends.find((row) => Number(row.friend_id) === Number(friendId));
+}
+
+function renderFriendDetail(friendId) {
+  const row = friendById(friendId);
+  if (!row) return resetFriendDetail();
+  state.selectedFriendId = Number(friendId);
+  const remark = displayFriendRemark(row);
+  const displayName = remark || row.nickname || row.wechat_id;
+  $("friendDetailEmpty").classList.add("hidden");
+  $("friendDetail").classList.remove("hidden");
+  const detailAvatar = $("friendDetailAvatar");
+  detailAvatar.classList.add("clickable-avatar");
+  detailAvatar.dataset.profileId = row.friend_id;
+  detailAvatar.innerHTML = `${row.avatar_url ? `<img src="${row.avatar_url}" alt="${displayName}头像" onerror="this.style.display='none'" />` : ""}<span>${(displayName || "U").slice(0, 1).toUpperCase()}</span>`;
+  $("friendDetailName").textContent = displayName;
+  $("friendDetailMeta").textContent = `${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}`;
+  $("friendDetailSignature").textContent = row.signature || "这个人还没有留下个性签名";
+  $("friendLastMoment").textContent = latestMomentText(row);
+  $("friendProfileBtn").dataset.profileId = row.friend_id;
+  $("friendMomentsBtn").dataset.profileId = row.friend_id;
+  $("friendMomentsBtn").dataset.profileMoments = "1";
+  $("openFullChatBtn").dataset.chat = row.friend_id;
+  $("openFullChatBtn").dataset.chatName = displayName;
+  $("openFullChatBtn").classList.toggle("hidden", !Number(row.can_chat));
+  renderPermissionPanel(row);
+  document.querySelectorAll(".friend-card").forEach((cardNode) => {
+    cardNode.classList.toggle("selected", Number(cardNode.dataset.selectFriend) === Number(friendId));
+  });
+}
+
+function renderPermissionPanel(row) {
+  const remark = displayFriendRemark(row);
+  $("friendPermissionPanel").innerHTML = `
+    <label>备注<input data-permission-field="remark" value="${remark}" placeholder="未设置时显示对方昵称" /></label>
+    <div class="permission-switches">
+      <label><input type="checkbox" data-permission-field="can_chat" ${checked(row.can_chat)} /> 允许聊天</label>
+      <label><input type="checkbox" data-permission-field="can_view_my_moments" ${checked(row.can_view_my_moments)} /> 对方可看我</label>
+      <label><input type="checkbox" data-permission-field="can_view_their_moments" ${checked(row.can_view_their_moments)} /> 我可看对方</label>
+      <label><input type="checkbox" data-permission-field="is_starred" ${checked(row.is_starred)} /> 星标朋友</label>
+      <label><input type="checkbox" data-permission-field="blocked" ${row.status === "blocked" ? "checked" : ""} /> 加入黑名单</label>
+    </div>
+    <button data-save-permissions="${row.friendship_id}">保存管理设置</button>
+  `;
+}
+
+async function selectFriend(friendId) {
+  const row = friendById(friendId);
+  if (!row) return;
+  renderFriendDetail(friendId);
+  await openMiniConversation(row);
+}
+
+function togglePermissionPanel() {
+  $("friendPermissionPanel").classList.toggle("hidden");
 }
 
 async function savePermissions(friendshipId) {
   const user = requireLogin();
-  const panel = $(`permission-${friendshipId}`);
+  const panel = $("friendPermissionPanel");
   if (!panel) return;
   const valueOf = (field) => panel.querySelector(`[data-permission-field="${field}"]`);
   await request(`/friends/${friendshipId}/permissions`, {
@@ -428,24 +543,49 @@ async function savePermissions(friendshipId) {
     }),
   });
   toast("朋友权限已保存");
+  const selectedFriendId = state.selectedFriendId;
   await loadFriends(state.friendFilter === "starred");
+  if (selectedFriendId) renderFriendDetail(selectedFriendId);
 }
 
-async function createPrivateConversation(friendId, friendName = "") {
+async function ensurePrivateConversation(friendId, friendName = "") {
   const user = requireLogin();
   const result = await request("/conversations/private", {
     method: "POST",
     body: JSON.stringify({ user_id: user.user_id, friend_id: Number(friendId) }),
   });
+  return {
+    conversationId: result.conversation_id,
+    conversationTitle: friendName || `私聊 #${friendId}`,
+    reused: result.reused,
+  };
+}
+
+async function createPrivateConversation(friendId, friendName = "") {
+  const result = await ensurePrivateConversation(friendId, friendName);
   const previousConversationId = state.conversationId;
-  state.conversationId = result.conversation_id;
-  state.conversationTitle = friendName || `私聊 #${friendId}`;
+  state.conversationId = result.conversationId;
+  state.conversationTitle = result.conversationTitle;
   if (Number(previousConversationId) !== Number(state.conversationId)) resetHistorySearch();
   $("chatPeerTitle").textContent = state.conversationTitle;
   switchTab("chat");
   toast(result.reused ? "已打开已有私聊" : "已创建私聊");
   await loadConversations();
   await loadMessages();
+}
+
+async function openMiniConversation(row) {
+  if (!Number(row.can_chat)) {
+    state.miniConversationId = null;
+    state.miniConversationTitle = "";
+    $("miniMessageList").innerHTML = `<div class="message-empty">当前权限不允许聊天</div>`;
+    return;
+  }
+  const displayName = displayFriendRemark(row) || row.nickname || row.wechat_id;
+  const result = await ensurePrivateConversation(row.friend_id, displayName);
+  state.miniConversationId = result.conversationId;
+  state.miniConversationTitle = result.conversationTitle;
+  await loadMiniMessages();
 }
 
 async function loadConversations() {
@@ -455,13 +595,23 @@ async function loadConversations() {
   list.innerHTML = "";
   if (!rows.length) return renderEmpty(list);
   rows.forEach((row) => {
+    const isPrivate = row.conversation_type === "private" && row.private_peer_id;
+    const title = isPrivate ? row.private_peer_name || row.title || "未命名会话" : row.title || "未命名会话";
+    const avatar = isPrivate
+      ? avatarMarkup({ avatar_url: row.private_peer_avatar, user_id: row.private_peer_id }, row.private_peer_name || title, "friend-avatar", row.private_peer_id)
+      : `<div class="friend-avatar group-avatar"><span>群</span></div>`;
     const node = card(`
-      <header><strong>${row.title || "未命名会话"}</strong><span class="meta">#${row.conversation_id}</span></header>
-      <div class="meta">${row.conversation_type} · ${row.member_count} 人 · ${row.last_message_at || "暂无消息"}</div>
+      <div class="conversation-main">
+        ${avatar}
+        <div>
+          <header><strong>${title}</strong><span class="meta">#${row.conversation_id}</span></header>
+          <div class="meta">${row.conversation_type} · ${row.member_count} 人 · ${row.last_message_at || "暂无消息"}</div>
+        </div>
+      </div>
     `);
     node.classList.add("conversation-card");
     node.dataset.openConversation = row.conversation_id;
-    node.dataset.conversationTitle = row.title || "未命名会话";
+    node.dataset.conversationTitle = title;
     node.tabIndex = 0;
     node.setAttribute("role", "button");
     node.setAttribute("aria-label", `打开聊天：${row.title || "未命名会话"}`);
@@ -508,6 +658,25 @@ async function searchMessageHistory() {
   });
 }
 
+async function loadMiniMessages() {
+  const user = requireLogin();
+  const list = $("miniMessageList");
+  list.innerHTML = "";
+  if (!state.miniConversationId) {
+    list.innerHTML = `<div class="message-empty">选择好友后开始聊天</div>`;
+    return;
+  }
+  const rows = await request(`/messages/${state.miniConversationId}?user_id=${user.user_id}`);
+  if (!rows.length) {
+    list.innerHTML = `<div class="message-empty">还没有聊天记录</div>`;
+    return;
+  }
+  rows.reverse().slice(-12).forEach((row) => {
+    list.appendChild(messageBubble(row, user, "mini-message"));
+  });
+  list.scrollTop = list.scrollHeight;
+}
+
 async function sendMessage() {
   const user = requireLogin();
   const content = $("messageContent").value.trim();
@@ -518,6 +687,19 @@ async function sendMessage() {
   });
   $("messageContent").value = "";
   await loadMessages();
+  await loadConversations();
+}
+
+async function sendMiniMessage() {
+  const user = requireLogin();
+  const content = $("miniMessageContent").value.trim();
+  if (!state.miniConversationId || !content) return toast("请选择好友并输入消息");
+  await request("/messages", {
+    method: "POST",
+    body: JSON.stringify({ conversation_id: state.miniConversationId, sender_id: user.user_id, content }),
+  });
+  $("miniMessageContent").value = "";
+  await loadMiniMessages();
   await loadConversations();
 }
 
@@ -576,6 +758,41 @@ async function publishMoment() {
   await loadMoments();
 }
 
+function renderMoment(row) {
+  const node = document.createElement("article");
+  node.className = "moment";
+  const mediaHtml = (row.media || [])
+    .map((item) => `<img src="${item.media_url}" alt="朋友圈图片" loading="lazy" />`)
+    .join("");
+  const commentsHtml = (row.comments || [])
+    .slice(0, 6)
+    .map((item) => `<p><strong>${item.nickname}</strong>：${item.content}</p>`)
+    .join("");
+  node.innerHTML = `
+    ${avatarMarkup({ ...row, user_id: row.author_id }, row.author, "moment-avatar", row.author_id)}
+    <div class="moment-body">
+      <header>
+        <strong class="clickable-name" data-profile-id="${row.author_id}">${row.author}</strong>
+        <span class="meta">${row.visibility_type}</span>
+      </header>
+      <p class="moment-text">${row.content}</p>
+      ${mediaHtml ? `<div class="moment-media">${mediaHtml}</div>` : ""}
+      <div class="moment-footer">
+        <span class="meta">${row.location || "未标注位置"} · ${row.created_at}</span>
+        <div class="moment-actions">
+          <button data-like="${row.post_id}">赞</button>
+          <button data-comment="${row.post_id}">评论</button>
+        </div>
+      </div>
+      <div class="moment-social">
+        <div class="meta">${row.like_count} 人觉得不错 · ${row.comment_count} 条评论</div>
+        ${commentsHtml ? `<div class="moment-comments">${commentsHtml}</div>` : ""}
+      </div>
+    </div>
+  `;
+  return node;
+}
+
 async function loadMoments() {
   const user = requireLogin();
   const rows = await request(`/moments/${user.user_id}`);
@@ -583,40 +800,17 @@ async function loadMoments() {
   list.innerHTML = "";
   if (!rows.length) return renderEmpty(list);
   rows.forEach((row) => {
-    const node = document.createElement("article");
-    node.className = "moment";
-    const mediaHtml = (row.media || [])
-      .map((item) => `<img src="${item.media_url}" alt="朋友圈图片" loading="lazy" />`)
-      .join("");
-    const commentsHtml = (row.comments || [])
-      .slice(0, 6)
-      .map((item) => `<p><strong>${item.nickname}</strong>：${item.content}</p>`)
-      .join("");
-    const avatarText = (row.author || "U").slice(0, 1).toUpperCase();
-    node.innerHTML = `
-      <div class="moment-avatar">${avatarText}</div>
-      <div class="moment-body">
-        <header>
-          <strong>${row.author}</strong>
-          <span class="meta">${row.visibility_type}</span>
-        </header>
-        <p class="moment-text">${row.content}</p>
-        ${mediaHtml ? `<div class="moment-media">${mediaHtml}</div>` : ""}
-        <div class="moment-footer">
-          <span class="meta">${row.location || "未标注位置"} · ${row.created_at}</span>
-          <div class="moment-actions">
-            <button data-like="${row.post_id}">赞</button>
-            <button data-comment="${row.post_id}">评论</button>
-          </div>
-        </div>
-        <div class="moment-social">
-          <div class="meta">${row.like_count} 人觉得不错 · ${row.comment_count} 条评论</div>
-          ${commentsHtml ? `<div class="moment-comments">${commentsHtml}</div>` : ""}
-        </div>
-      </div>
-    `;
-    list.appendChild(node);
+    list.appendChild(renderMoment(row));
   });
+}
+
+async function loadProfileMoments(profileUserId) {
+  const user = requireLogin();
+  const rows = await request(`/moments/${user.user_id}?author_id=${profileUserId}`);
+  const list = $("profileMomentList");
+  list.innerHTML = "";
+  if (!rows.length) return renderEmpty(list, "这里还没有可见的朋友圈");
+  rows.forEach((row) => list.appendChild(renderMoment(row)));
 }
 
 async function likeMoment(postId) {
@@ -653,6 +847,10 @@ function bindEvents() {
   $("closeComposerBtn").addEventListener("click", closeMomentComposer);
   $("openHistoryBtn").addEventListener("click", openHistoryDrawer);
   $("closeHistoryBtn").addEventListener("click", closeHistoryDrawer);
+  $("closeFriendAuxBtn").addEventListener("click", hideFriendAuxPanel);
+  $("friendManageBtn").addEventListener("click", togglePermissionPanel);
+  $("miniSendMessageBtn").addEventListener("click", () => sendMiniMessage().catch((error) => toast(error.message)));
+  $("profileMomentsBtn").addEventListener("click", () => $("profileMomentList").scrollIntoView({ behavior: "smooth" }));
   $("saveProfileBtn").addEventListener("click", () => saveProfile().catch((error) => toast(error.message)));
   $("searchUserBtn").addEventListener("click", () => searchUsers().catch((error) => toast(error.message)));
   $("showAllFriendsBtn").addEventListener("click", () => loadFriends(false).catch((error) => toast(error.message)));
@@ -669,6 +867,20 @@ function bindEvents() {
   });
 
   document.body.addEventListener("click", (event) => {
+    const profileTarget = event.target.closest("[data-profile-id]");
+    if (profileTarget) {
+      event.stopPropagation();
+      const shouldScrollToMoments = profileTarget.dataset.profileMoments === "1";
+      openProfile(profileTarget.dataset.profileId)
+        .then(() => {
+          if (shouldScrollToMoments) {
+            window.setTimeout(() => $("profileMomentList").scrollIntoView({ behavior: "smooth" }), 180);
+          }
+        })
+        .catch((error) => toast(error.message));
+      return;
+    }
+
     const conversationCard = event.target.closest(".conversation-card");
     if (conversationCard) {
       const previousConversationId = state.conversationId;
@@ -681,9 +893,16 @@ function bindEvents() {
       return;
     }
 
+    const friendCard = event.target.closest(".friend-card");
+    if (friendCard) {
+      selectFriend(friendCard.dataset.selectFriend).catch((error) => toast(error.message));
+      return;
+    }
+
     const target = event.target.closest("button");
     if (!target) return;
     if (target.dataset.tab) {
+      if (target.dataset.tab === "profile" && state.user) state.profileUserId = state.user.user_id;
       switchTab(target.dataset.tab);
       return;
     }
@@ -692,6 +911,8 @@ function bindEvents() {
     if (target.dataset.reject) handleFriendRequest(target.dataset.reject, "rejected").catch((error) => toast(error.message));
     if (target.dataset.togglePermissionPanel) togglePermissionPanel(target.dataset.togglePermissionPanel);
     if (target.dataset.savePermissions) savePermissions(target.dataset.savePermissions).catch((error) => toast(error.message));
+    if (target.id === "friendMomentsBtn") openProfile(target.dataset.profileId).catch((error) => toast(error.message));
+    if (target.id === "friendProfileBtn") openProfile(target.dataset.profileId).catch((error) => toast(error.message));
     if (target.dataset.chat) {
       createPrivateConversation(target.dataset.chat, target.dataset.chatName).catch((error) => toast(error.message));
     }

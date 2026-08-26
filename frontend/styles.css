@@ -370,6 +370,18 @@ textarea {
   margin-bottom: 8px;
 }
 
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.section-head h3 {
+  margin: 0;
+}
+
 .segmented {
   display: inline-flex;
   align-items: center;
@@ -418,6 +430,209 @@ label {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
+}
+
+.profile-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-hero {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(32, 199, 122, 0.15), rgba(35, 167, 201, 0.08)),
+    rgba(255, 255, 255, 0.045);
+}
+
+.profile-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(32, 199, 122, 0.95), rgba(35, 167, 201, 0.72));
+  color: #07130f;
+  font-size: 34px;
+  font-weight: 800;
+  overflow: hidden;
+}
+
+.profile-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-avatar span,
+.friend-avatar span {
+  position: relative;
+  z-index: 1;
+}
+
+.profile-identity h3 {
+  margin: 4px 0 6px;
+  font-size: 26px;
+}
+
+.profile-identity p,
+.mini-profile p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.profile-actions,
+.mini-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.profile-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profile-info-grid div {
+  display: grid;
+  gap: 6px;
+  min-height: 76px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.profile-info-grid span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profile-info-grid strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.profile-editor,
+.profile-moments {
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.compact-feed {
+  gap: 8px;
+}
+
+.friends-shell {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 620px;
+}
+
+.friends-list-pane,
+.friend-detail-pane {
+  min-width: 0;
+}
+
+.friend-tools {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.friend-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.soft-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.soft-filters button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.soft-filters button.active,
+.soft-filters button:hover {
+  border-color: rgba(32, 199, 122, 0.22);
+  background: rgba(32, 199, 122, 0.12);
+  color: var(--ink);
+}
+
+.friend-detail-pane {
+  position: relative;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.032);
+  padding: 14px;
+  overflow: hidden;
+}
+
+.friend-detail-empty {
+  display: grid;
+  place-items: center;
+  min-height: 540px;
+  color: var(--muted);
+}
+
+.friend-detail {
+  display: grid;
+  gap: 14px;
+}
+
+.mini-profile {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.friend-avatar.large {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  font-size: 22px;
+}
+
+.friend-last-moment {
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: rgba(32, 199, 122, 0.08);
+  color: #c6e7da;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.friend-aux-drawer {
+  position: absolute;
+  inset: 14px;
+  z-index: 4;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  border-radius: 8px;
+  background: rgba(12, 20, 24, 0.97);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  overflow: hidden;
 }
 
 .chat-layout {
@@ -483,6 +698,21 @@ h3 {
   align-items: start;
 }
 
+.friend-card {
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.friend-card:hover,
+.friend-card.selected {
+  border-color: rgba(32, 199, 122, 0.34);
+  background: rgba(32, 199, 122, 0.09);
+}
+
+.friend-card:hover {
+  transform: translateY(-1px);
+}
+
 .friend-avatar {
   position: relative;
   display: grid;
@@ -502,6 +732,15 @@ h3 {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.clickable-avatar,
+.clickable-name {
+  cursor: pointer;
+}
+
+.clickable-name:hover {
+  color: #b7f8d3;
 }
 
 .friend-info {
@@ -548,11 +787,11 @@ h3 {
 .permission-panel {
   display: grid;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 0;
   padding: 12px;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(168, 221, 201, 0.08);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.032);
 }
 
 .permission-panel label {
@@ -571,6 +810,12 @@ h3 {
   width: auto;
 }
 
+.permission-switches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .message-box {
   max-height: 460px;
   min-height: 340px;
@@ -579,6 +824,24 @@ h3 {
   border-radius: 8px;
   padding: 10px;
   background: rgba(0, 0, 0, 0.18);
+}
+
+.mini-chat {
+  display: grid;
+  gap: 10px;
+}
+
+.mini-message-box {
+  min-height: 280px;
+  max-height: 320px;
+}
+
+.mini-message .bubble {
+  max-width: min(82%, 420px);
+}
+
+.mini-send-row {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .message-empty {
@@ -606,6 +869,17 @@ h3 {
 .conversation-card.selected {
   border-color: var(--primary);
   background: rgba(32, 199, 122, 0.12);
+}
+
+.conversation-main {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.group-avatar {
+  background: linear-gradient(135deg, rgba(35, 167, 201, 0.78), rgba(255, 199, 72, 0.42));
 }
 
 .message {
@@ -888,10 +1162,20 @@ th {
 @media (max-width: 920px) {
   .shell,
   .split,
+  .friends-shell,
+  .profile-hero,
+  .profile-info-grid,
+  .mini-profile,
+  .permission-switches,
   .chat-layout,
   .form-grid,
   .stat-grid {
     grid-template-columns: 1fr;
+  }
+
+  .profile-actions,
+  .mini-actions {
+    justify-content: flex-start;
   }
 
   .sidebar {
