@@ -761,12 +761,23 @@ h3 {
   display: inline-grid;
   place-items: center;
   width: 22px;
+  min-width: 22px;
   height: 22px;
+  min-height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 199, 72, 0.18);
   border-radius: 50%;
-  background: rgba(255, 199, 72, 0.18);
-  color: #ffd166;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(255, 255, 255, 0.38);
   font-size: 14px;
   line-height: 1;
+}
+
+.star-badge.active,
+.star-badge:hover {
+  background: rgba(255, 199, 72, 0.18);
+  border-color: rgba(255, 199, 72, 0.34);
+  color: #ffd166;
 }
 
 .blocked-badge {
@@ -1028,9 +1039,40 @@ h3 {
 .image-preview,
 .moment-media {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 8px;
   margin: 10px 0;
+}
+
+.image-preview,
+.moment-media {
+  width: min(100%, 420px);
+}
+
+.image-preview.media-single,
+.moment-media.media-single {
+  width: min(100%, 360px);
+  grid-template-columns: minmax(180px, 360px);
+}
+
+.image-preview.media-double,
+.moment-media.media-double {
+  grid-template-columns: repeat(2, minmax(120px, 180px));
+}
+
+.image-preview.media-triple,
+.moment-media.media-triple {
+  grid-template-columns: repeat(3, minmax(88px, 128px));
+}
+
+.image-preview.media-quad,
+.moment-media.media-quad {
+  width: min(100%, 300px);
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+}
+
+.image-preview.media-grid,
+.moment-media.media-grid {
+  grid-template-columns: repeat(3, minmax(88px, 128px));
 }
 
 .image-preview img,
@@ -1041,6 +1083,22 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.055);
+}
+
+.image-preview.media-single img,
+.moment-media.media-single img {
+  aspect-ratio: 4 / 3;
+  max-height: 360px;
+}
+
+.moment-media img {
+  cursor: zoom-in;
+  transition: filter 0.16s ease, transform 0.16s ease;
+}
+
+.moment-media img:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 
 .moment {
@@ -1155,6 +1213,90 @@ th {
   transform: translateY(0);
 }
 
+.viewer-open {
+  overflow: hidden;
+}
+
+.image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 76px;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.92);
+  padding: 28px 22px;
+}
+
+.viewer-stage {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0;
+}
+
+.viewer-stage img {
+  max-width: 100%;
+  max-height: calc(100vh - 150px);
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+}
+
+.viewer-stage figcaption {
+  display: grid;
+  gap: 5px;
+  width: min(100%, 760px);
+  color: var(--ink);
+  text-align: center;
+}
+
+.viewer-stage figcaption span {
+  color: #d9e8e1;
+  line-height: 1.55;
+}
+
+.viewer-stage figcaption em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.viewer-close,
+.viewer-nav {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.viewer-close {
+  position: absolute;
+  top: 20px;
+  right: 22px;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 28px;
+}
+
+.viewer-nav {
+  width: 52px;
+  min-width: 52px;
+  height: 76px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 46px;
+}
+
+.viewer-nav:hover,
+.viewer-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .hidden {
   display: none;
 }
@@ -1176,6 +1318,39 @@ th {
   .profile-actions,
   .mini-actions {
     justify-content: flex-start;
+  }
+
+  .image-preview,
+  .image-preview.media-single,
+  .image-preview.media-double,
+  .image-preview.media-triple,
+  .image-preview.media-quad,
+  .image-preview.media-grid,
+  .moment-media,
+  .moment-media.media-single,
+  .moment-media.media-double,
+  .moment-media.media-triple,
+  .moment-media.media-quad,
+  .moment-media.media-grid {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .image-preview.media-single,
+  .moment-media.media-single {
+    grid-template-columns: 1fr;
+  }
+
+  .image-viewer {
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+    padding: 52px 10px 22px;
+  }
+
+  .viewer-nav {
+    width: 42px;
+    min-width: 42px;
+    height: 58px;
+    font-size: 34px;
   }
 
   .sidebar {

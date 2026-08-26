@@ -11,6 +11,8 @@ const state = {
   miniConversationTitle: "",
   activeTab: "moments",
   friendFilter: "all",
+  viewerIndex: 0,
+  viewerItems: [],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -56,7 +58,7 @@ function setUser(user) {
     $("loginPanel").classList.add("hidden");
     $("userCard").classList.remove("hidden");
     $("nickname").textContent = user.nickname;
-    $("wechatId").textContent = `${user.wechat_id} · 用户编号 ${user.user_id}`;
+    $("wechatId").textContent = user.wechat_id;
     $("avatar").textContent = user.nickname.slice(0, 1).toUpperCase();
   } else {
     localStorage.removeItem("momentsUser");
@@ -251,13 +253,64 @@ function resetFriendDetail() {
   $("friendPermissionPanel").innerHTML = "";
 }
 
+function mediaLayoutClass(count) {
+  if (count <= 1) return "single";
+  if (count === 2) return "double";
+  if (count === 3) return "triple";
+  if (count === 4) return "quad";
+  return "grid";
+}
+
+function collectVisibleImages(clickedImage) {
+  const activeView = document.querySelector(".view.active");
+  const images = Array.from(activeView?.querySelectorAll(".moment-media img[data-image-url]") || []);
+  state.viewerItems = images.map((image) => ({
+    url: image.dataset.imageUrl,
+    author: image.dataset.imageAuthor,
+    caption: image.dataset.imageCaption,
+    time: image.dataset.imageTime,
+    imageIndex: image.dataset.imageIndex,
+    imageTotal: image.dataset.imageTotal,
+  }));
+  state.viewerIndex = Math.max(0, images.indexOf(clickedImage));
+}
+
+function showViewerImage() {
+  const item = state.viewerItems[state.viewerIndex];
+  if (!item) return closeImageViewer();
+  $("viewerImage").src = item.url;
+  $("viewerAuthor").textContent = item.author || "";
+  $("viewerCaption").textContent = item.caption || "";
+  $("viewerCounter").textContent = `${state.viewerIndex + 1}/${state.viewerItems.length} · 本动态 ${item.imageIndex}/${item.imageTotal} · ${item.time || ""}`;
+}
+
+function openImageViewer(image) {
+  collectVisibleImages(image);
+  if (!state.viewerItems.length) return;
+  $("imageViewer").classList.remove("hidden");
+  document.body.classList.add("viewer-open");
+  showViewerImage();
+}
+
+function closeImageViewer() {
+  $("imageViewer").classList.add("hidden");
+  document.body.classList.remove("viewer-open");
+  $("viewerImage").removeAttribute("src");
+}
+
+function moveViewer(step) {
+  if (!state.viewerItems.length) return;
+  state.viewerIndex = (state.viewerIndex + step + state.viewerItems.length) % state.viewerItems.length;
+  showViewerImage();
+}
+
 function renderTable(rows) {
   const table = $("statsTable");
   if (!rows || rows.length === 0) {
     table.innerHTML = "<tr><td>暂无数据</td></tr>";
     return;
   }
-  const columns = Object.keys(rows[0]);
+  const columns = Object.keys(rows[0]).filter((col) => col !== "user_id");
   table.innerHTML = `
     <thead><tr>${columns.map((col) => `<th>${col}</th>`).join("")}</tr></thead>
     <tbody>
@@ -319,7 +372,6 @@ async function loadProfile(userId = null) {
   $("profileMomentsTitle").textContent = isSelf ? "我的朋友圈" : `${profile.nickname || "ta"} 的朋友圈`;
   $("profileInfoGrid").innerHTML = `
     <div><span>微信号</span><strong>${profile.wechat_id}</strong></div>
-    <div><span>用户编号</span><strong>${profile.user_id}</strong></div>
     <div><span>地区</span><strong>${profile.region || "未填写"}</strong></div>
     <div><span>性别</span><strong>${profile.gender || "unknown"}</strong></div>
     <div><span>手机号</span><strong>${isSelf ? profile.phone || "未填写" : "仅本人可见"}</strong></div>
@@ -371,7 +423,7 @@ async function searchUsers() {
       <div class="friend-main">
         ${avatarMarkup(row, row.nickname || row.wechat_id, "friend-avatar", row.user_id)}
         <div class="friend-info">
-          <header><strong>${row.nickname}</strong><span class="meta">#${row.user_id}</span></header>
+          <header><strong>${row.nickname}</strong></header>
           <div class="meta">${row.wechat_id} · ${row.region || ""}</div>
           <p>${row.signature || ""}</p>
         </div>
@@ -405,7 +457,7 @@ async function loadFriends(starredOnly = state.friendFilter === "starred", optio
           <header>
             <strong>${displayName}</strong>
             <span class="friend-badges">
-              ${row.is_starred ? `<span class="star-badge" title="星标朋友">★</span>` : ""}
+              <button class="star-badge ${row.is_starred ? "active" : ""}" data-toggle-star="${row.friendship_id}" title="${row.is_starred ? "取消星标" : "设为星标"}" aria-label="${row.is_starred ? "取消星标" : "设为星标"}">★</button>
               ${row.status === "blocked" ? `<span class="blocked-badge">已拉黑</span>` : ""}
             </span>
           </header>
@@ -543,6 +595,29 @@ async function savePermissions(friendshipId) {
     }),
   });
   toast("朋友权限已保存");
+  const selectedFriendId = state.selectedFriendId;
+  await loadFriends(state.friendFilter === "starred");
+  if (selectedFriendId) renderFriendDetail(selectedFriendId);
+}
+
+async function toggleStar(friendshipId) {
+  const user = requireLogin();
+  const row = state.friends.find((item) => Number(item.friendship_id) === Number(friendshipId));
+  if (!row) return;
+  const nextStarred = !Number(row.is_starred);
+  await request(`/friends/${friendshipId}/permissions`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      user_id: user.user_id,
+      remark: (row.my_remark || "").trim(),
+      can_chat: Boolean(Number(row.can_chat)),
+      can_view_my_moments: Boolean(Number(row.can_view_my_moments)),
+      can_view_their_moments: Boolean(Number(row.can_view_their_moments)),
+      is_starred: nextStarred,
+      blocked: row.status === "blocked",
+    }),
+  });
+  toast(nextStarred ? "已设为星标朋友" : "已取消星标");
   const selectedFriendId = state.selectedFriendId;
   await loadFriends(state.friendFilter === "starred");
   if (selectedFriendId) renderFriendDetail(selectedFriendId);
@@ -726,6 +801,7 @@ function previewMomentImages() {
   const files = Array.from($("momentImages").files || []);
   const preview = $("momentPreview");
   preview.innerHTML = "";
+  preview.className = `image-preview media-${mediaLayoutClass(files.length)}`;
   files.forEach((file) => {
     const image = document.createElement("img");
     image.src = URL.createObjectURL(file);
@@ -753,6 +829,7 @@ async function publishMoment() {
   $("momentContent").value = "";
   $("momentImages").value = "";
   $("momentPreview").innerHTML = "";
+  $("momentPreview").className = "image-preview";
   closeMomentComposer();
   toast("朋友圈已发布");
   await loadMoments();
@@ -761,8 +838,12 @@ async function publishMoment() {
 function renderMoment(row) {
   const node = document.createElement("article");
   node.className = "moment";
-  const mediaHtml = (row.media || [])
-    .map((item) => `<img src="${item.media_url}" alt="朋友圈图片" loading="lazy" />`)
+  const mediaItems = row.media || [];
+  const mediaHtml = mediaItems
+    .map(
+      (item, index) =>
+        `<img src="${item.media_url}" alt="朋友圈图片" loading="lazy" data-image-url="${item.media_url}" data-image-author="${row.author}" data-image-caption="${row.content}" data-image-time="${row.created_at}" data-image-index="${index + 1}" data-image-total="${mediaItems.length}" />`
+    )
     .join("");
   const commentsHtml = (row.comments || [])
     .slice(0, 6)
@@ -776,7 +857,7 @@ function renderMoment(row) {
         <span class="meta">${row.visibility_type}</span>
       </header>
       <p class="moment-text">${row.content}</p>
-      ${mediaHtml ? `<div class="moment-media">${mediaHtml}</div>` : ""}
+      ${mediaHtml ? `<div class="moment-media media-${mediaLayoutClass(mediaItems.length)}">${mediaHtml}</div>` : ""}
       <div class="moment-footer">
         <span class="meta">${row.location || "未标注位置"} · ${row.created_at}</span>
         <div class="moment-actions">
@@ -851,6 +932,12 @@ function bindEvents() {
   $("friendManageBtn").addEventListener("click", togglePermissionPanel);
   $("miniSendMessageBtn").addEventListener("click", () => sendMiniMessage().catch((error) => toast(error.message)));
   $("profileMomentsBtn").addEventListener("click", () => $("profileMomentList").scrollIntoView({ behavior: "smooth" }));
+  $("viewerCloseBtn").addEventListener("click", closeImageViewer);
+  $("viewerPrevBtn").addEventListener("click", () => moveViewer(-1));
+  $("viewerNextBtn").addEventListener("click", () => moveViewer(1));
+  $("imageViewer").addEventListener("click", (event) => {
+    if (event.target.id === "imageViewer") closeImageViewer();
+  });
   $("saveProfileBtn").addEventListener("click", () => saveProfile().catch((error) => toast(error.message)));
   $("searchUserBtn").addEventListener("click", () => searchUsers().catch((error) => toast(error.message)));
   $("showAllFriendsBtn").addEventListener("click", () => loadFriends(false).catch((error) => toast(error.message)));
@@ -867,6 +954,12 @@ function bindEvents() {
   });
 
   document.body.addEventListener("click", (event) => {
+    const imageTarget = event.target.closest(".moment-media img[data-image-url]");
+    if (imageTarget) {
+      openImageViewer(imageTarget);
+      return;
+    }
+
     const profileTarget = event.target.closest("[data-profile-id]");
     if (profileTarget) {
       event.stopPropagation();
@@ -878,6 +971,13 @@ function bindEvents() {
           }
         })
         .catch((error) => toast(error.message));
+      return;
+    }
+
+    const starTarget = event.target.closest("[data-toggle-star]");
+    if (starTarget) {
+      event.stopPropagation();
+      toggleStar(starTarget.dataset.toggleStar).catch((error) => toast(error.message));
       return;
     }
 
@@ -930,6 +1030,13 @@ function bindEvents() {
   });
 
   document.body.addEventListener("keydown", (event) => {
+    if (!$("imageViewer").classList.contains("hidden")) {
+      if (event.key === "Escape") closeImageViewer();
+      if (event.key === "ArrowLeft") moveViewer(-1);
+      if (event.key === "ArrowRight") moveViewer(1);
+      return;
+    }
+
     const conversationCard = event.target.closest(".conversation-card");
     if (!conversationCard || !["Enter", " "].includes(event.key)) return;
     event.preventDefault();

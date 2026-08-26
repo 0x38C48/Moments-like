@@ -257,6 +257,19 @@
       </section>
     </main>
     <div class="toast" id="toast"></div>
+    <div class="image-viewer hidden" id="imageViewer" aria-modal="true" role="dialog">
+      <button class="viewer-close" id="viewerCloseBtn" title="关闭" aria-label="关闭大图">×</button>
+      <button class="viewer-nav viewer-prev" id="viewerPrevBtn" title="上一张" aria-label="上一张">‹</button>
+      <figure class="viewer-stage">
+        <img id="viewerImage" alt="朋友圈大图" />
+        <figcaption>
+          <strong id="viewerAuthor"></strong>
+          <span id="viewerCaption"></span>
+          <em id="viewerCounter"></em>
+        </figcaption>
+      </figure>
+      <button class="viewer-nav viewer-next" id="viewerNextBtn" title="下一张" aria-label="下一张">›</button>
+    </div>
     <script src="./app.js"></script>
   </body>
 </html>
