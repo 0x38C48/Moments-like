@@ -142,14 +142,19 @@
           </div>
           <aside class="history-drawer hidden" id="historyDrawer" aria-label="聊天记录检索">
             <div class="drawer-head">
-              <h3>聊天记录</h3>
+              <div>
+                <h3>聊天记录</h3>
+                <span class="meta" id="historyConversationTitle">当前会话</span>
+              </div>
               <button class="icon-button ghost" id="closeHistoryBtn" title="关闭" aria-label="关闭聊天记录检索">×</button>
             </div>
             <div class="drawer-search">
               <input id="messageKeyword" placeholder="搜索当前会话" />
               <button id="searchMessagesBtn">搜索</button>
             </div>
-            <div class="drawer-hint">输入关键词后只筛选当前打开的会话。</div>
+            <div class="history-results" id="historyResults">
+              <div class="drawer-hint">输入关键词后，结果会直接显示在这里。</div>
+            </div>
           </aside>
         </section>
 

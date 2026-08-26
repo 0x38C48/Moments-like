@@ -96,6 +96,16 @@ textarea {
   color: var(--ink);
 }
 
+select {
+  background-color: #132024;
+  color-scheme: dark;
+}
+
+select option {
+  background: #111a1e;
+  color: var(--ink);
+}
+
 input::placeholder,
 textarea::placeholder {
   color: #60756d;
@@ -563,11 +573,21 @@ h3 {
 
 .message-box {
   max-height: 460px;
+  min-height: 340px;
   overflow: auto;
   border: 0;
   border-radius: 8px;
   padding: 10px;
   background: rgba(0, 0, 0, 0.18);
+}
+
+.message-empty {
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
 }
 
 .conversation-card {
@@ -645,6 +665,7 @@ h3 {
   z-index: 3;
   width: min(360px, calc(100% - 36px));
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   align-content: start;
   gap: 14px;
   border: 1px solid rgba(168, 221, 201, 0.12);
@@ -676,6 +697,27 @@ h3 {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.history-results {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.history-message,
+.history-message.own {
+  justify-content: stretch;
+}
+
+.history-message .bubble {
+  width: 100%;
+  max-width: none;
+  border: 1px solid rgba(168, 221, 201, 0.08);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .composer {

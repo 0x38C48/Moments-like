@@ -70,6 +70,7 @@ function clearUserScopedViews() {
   $("messageList").innerHTML = "";
   $("momentList").innerHTML = "";
   $("statsTable").innerHTML = "";
+  $("historyResults").innerHTML = "";
   $("chatPeerTitle").textContent = "消息";
   closeHistoryDrawer();
   hideFriendAuxPanel();
@@ -121,12 +122,22 @@ function toggleMomentComposer() {
 }
 
 function openHistoryDrawer() {
+  updateHistoryTitle();
+  if (!$("historyResults").innerHTML.trim()) {
+    renderHistoryNotice("输入关键词后，结果会直接显示在这里。");
+  }
   $("historyDrawer").classList.remove("hidden");
   $("messageKeyword").focus();
 }
 
 function closeHistoryDrawer() {
   $("historyDrawer").classList.add("hidden");
+}
+
+function updateHistoryTitle() {
+  $("historyConversationTitle").textContent = state.conversationId
+    ? state.conversationTitle || `会话 #${state.conversationId}`
+    : "还没有打开会话";
 }
 
 function applySidebarState() {
@@ -181,6 +192,34 @@ function card(html) {
 
 function renderEmpty(target, text = "暂无数据") {
   target.innerHTML = `<div class="card meta">${text}</div>`;
+}
+
+function renderChatEmpty(text) {
+  $("messageList").innerHTML = `<div class="message-empty">${text}</div>`;
+}
+
+function renderHistoryNotice(text) {
+  $("historyResults").innerHTML = `<div class="drawer-hint">${text}</div>`;
+}
+
+function resetHistorySearch() {
+  $("messageKeyword").value = "";
+  updateHistoryTitle();
+  renderHistoryNotice("输入关键词后，结果会直接显示在这里。");
+}
+
+function messageBubble(row, user, extraClass = "") {
+  const ownClass = Number(row.sender_id) === Number(user.user_id) ? "own" : "";
+  const node = document.createElement("div");
+  node.className = `message ${ownClass} ${extraClass}`.trim();
+  node.innerHTML = `
+    <div class="bubble">
+      <strong>${row.sender}</strong>
+      <p>${row.content}</p>
+      <span class="meta">${row.sent_at}</span>
+    </div>
+  `;
+  return node;
 }
 
 function renderTable(rows) {
@@ -398,8 +437,10 @@ async function createPrivateConversation(friendId, friendName = "") {
     method: "POST",
     body: JSON.stringify({ user_id: user.user_id, friend_id: Number(friendId) }),
   });
+  const previousConversationId = state.conversationId;
   state.conversationId = result.conversation_id;
   state.conversationTitle = friendName || `私聊 #${friendId}`;
+  if (Number(previousConversationId) !== Number(state.conversationId)) resetHistorySearch();
   $("chatPeerTitle").textContent = state.conversationTitle;
   switchTab("chat");
   toast(result.reused ? "已打开已有私聊" : "已创建私聊");
@@ -433,26 +474,38 @@ async function loadConversations() {
 
 async function loadMessages() {
   const user = requireLogin();
-  if (!state.conversationId) return renderEmpty($("messageList"), "请选择会话");
+  if (!state.conversationId) return renderChatEmpty("请选择一个会话开始聊天");
   $("chatPeerTitle").textContent = state.conversationTitle || `会话 #${state.conversationId}`;
-  const keyword = encodeURIComponent($("messageKeyword").value.trim());
-  const rows = await request(`/messages/${state.conversationId}?user_id=${user.user_id}&keyword=${keyword}`);
+  updateHistoryTitle();
+  const rows = await request(`/messages/${state.conversationId}?user_id=${user.user_id}`);
   const list = $("messageList");
   list.innerHTML = "";
-  if (!rows.length) return renderEmpty(list);
+  if (!rows.length) return renderChatEmpty("还没有聊天记录，发一条消息开始吧");
   rows.reverse().forEach((row) => {
-    const node = document.createElement("div");
-    node.className = `message ${Number(row.sender_id) === Number(user.user_id) ? "own" : ""}`;
-    node.innerHTML = `
-      <div class="bubble">
-        <strong>${row.sender}</strong>
-        <p>${row.content}</p>
-        <span class="meta">${row.sent_at}</span>
-      </div>
-    `;
-    list.appendChild(node);
+    list.appendChild(messageBubble(row, user));
   });
   list.scrollTop = list.scrollHeight;
+}
+
+async function searchMessageHistory() {
+  const user = requireLogin();
+  openHistoryDrawer();
+  if (!state.conversationId) return renderHistoryNotice("先从左侧打开一个会话，再搜索聊天记录。");
+  const keyword = $("messageKeyword").value.trim();
+  if (!keyword) return renderHistoryNotice("输入关键词后，结果会直接显示在这里。");
+  const rows = await request(
+    `/messages/${state.conversationId}?user_id=${user.user_id}&keyword=${encodeURIComponent(keyword)}`
+  );
+  const results = $("historyResults");
+  results.innerHTML = "";
+  if (!rows.length) return renderHistoryNotice("没有搜索到相关聊天记录。");
+  const summary = document.createElement("div");
+  summary.className = "drawer-hint";
+  summary.textContent = `找到 ${rows.length} 条相关记录`;
+  results.appendChild(summary);
+  rows.forEach((row) => {
+    results.appendChild(messageBubble(row, user, "history-message"));
+  });
 }
 
 async function sendMessage() {
@@ -605,7 +658,7 @@ function bindEvents() {
   $("showAllFriendsBtn").addEventListener("click", () => loadFriends(false).catch((error) => toast(error.message)));
   $("showStarredFriendsBtn").addEventListener("click", () => loadFriends(true).catch((error) => toast(error.message)));
   $("loadRequestsBtn").addEventListener("click", () => loadRequests().catch((error) => toast(error.message)));
-  $("searchMessagesBtn").addEventListener("click", () => loadMessages().catch((error) => toast(error.message)));
+  $("searchMessagesBtn").addEventListener("click", () => searchMessageHistory().catch((error) => toast(error.message)));
   $("sendMessageBtn").addEventListener("click", () => sendMessage().catch((error) => toast(error.message)));
   $("publishMomentBtn").addEventListener("click", () => publishMoment().catch((error) => toast(error.message)));
   $("momentImages").addEventListener("change", previewMomentImages);
@@ -618,8 +671,10 @@ function bindEvents() {
   document.body.addEventListener("click", (event) => {
     const conversationCard = event.target.closest(".conversation-card");
     if (conversationCard) {
+      const previousConversationId = state.conversationId;
       state.conversationId = Number(conversationCard.dataset.openConversation);
       state.conversationTitle = conversationCard.dataset.conversationTitle || `会话 #${state.conversationId}`;
+      if (Number(previousConversationId) !== Number(state.conversationId)) resetHistorySearch();
       $("chatPeerTitle").textContent = state.conversationTitle;
       loadMessages().catch((error) => toast(error.message));
       loadConversations().catch(() => {});
@@ -641,8 +696,10 @@ function bindEvents() {
       createPrivateConversation(target.dataset.chat, target.dataset.chatName).catch((error) => toast(error.message));
     }
     if (target.dataset.openConversation) {
+      const previousConversationId = state.conversationId;
       state.conversationId = Number(target.dataset.openConversation);
       state.conversationTitle = target.dataset.conversationTitle || `会话 #${state.conversationId}`;
+      if (Number(previousConversationId) !== Number(state.conversationId)) resetHistorySearch();
       $("chatPeerTitle").textContent = state.conversationTitle;
       loadMessages().catch((error) => toast(error.message));
     }
