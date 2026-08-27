@@ -404,7 +404,9 @@ def conversations(user_id: int):
             JOIN conversation_members cm2 ON cm2.conversation_id = c.conversation_id
             WHERE cm.user_id = %s
             GROUP BY c.conversation_id, c.conversation_type, c.title, c.last_message_at
-            ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
+            ORDER BY
+              CASE WHEN c.last_message_at IS NULL THEN 1 ELSE 0 END,
+              COALESCE(c.last_message_at, c.created_at) DESC
             LIMIT 20
             """,
             (user_id, user_id, user_id, user_id),

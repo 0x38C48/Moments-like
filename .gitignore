@@ -4,3 +4,6 @@ __pycache__/
 .idea/
 backend/uploads/*
 !backend/uploads/.gitkeep
+output/
+*.pptx.inspect.ndjson
+微信式资料与朋友圈系统-课程设计汇报/
