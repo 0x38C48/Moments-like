@@ -6,11 +6,13 @@ const state = {
   conversationTitle: "",
   profileUserId: null,
   friends: [],
+  friendTags: [],
   selectedFriendId: null,
   miniConversationId: null,
   miniConversationTitle: "",
   activeTab: "moments",
   friendFilter: "all",
+  activeFriendTagId: null,
   viewerIndex: 0,
   viewerItems: [],
 };
@@ -74,6 +76,7 @@ function setUser(user) {
 
 function clearUserScopedViews() {
   $("friendList").innerHTML = "";
+  $("friendTagFilters").innerHTML = "";
   $("userList").innerHTML = "";
   $("conversationList").innerHTML = "";
   $("messageList").innerHTML = "";
@@ -83,7 +86,9 @@ function clearUserScopedViews() {
   $("statsTable").innerHTML = "";
   $("historyResults").innerHTML = "";
   state.friends = [];
+  state.friendTags = [];
   state.selectedFriendId = null;
+  state.activeFriendTagId = null;
   state.miniConversationId = null;
   state.miniConversationTitle = "";
   $("chatPeerTitle").textContent = "消息";
@@ -95,11 +100,12 @@ function clearUserScopedViews() {
 async function refreshAllData() {
   const user = requireLogin();
   const profilePromise = loadProfile();
+  const tagsPromise = loadFriendTags();
   const friendsPromise = loadFriends();
   const conversationsPromise = loadConversations();
   const momentsPromise = loadMoments();
   const statsPromise = loadStats("messages");
-  await Promise.all([profilePromise, friendsPromise, conversationsPromise, momentsPromise, statsPromise]);
+  await Promise.all([profilePromise, tagsPromise, friendsPromise, conversationsPromise, momentsPromise, statsPromise]);
   if (state.conversationId) await loadMessages();
   return user;
 }
@@ -175,6 +181,7 @@ async function refreshActiveTab() {
   if (state.activeTab === "profile") await loadProfile(state.profileUserId || state.user.user_id);
   if (state.activeTab === "friends") {
     hideFriendAuxPanel();
+    await loadFriendTags();
     await loadFriends(state.friendFilter === "starred");
   }
   if (state.activeTab === "chat") await loadConversations();
@@ -354,6 +361,42 @@ function displayFriendRemark(row) {
   return remark;
 }
 
+function parseTagIds(row) {
+  return String(row.tag_ids || "")
+    .split(",")
+    .map((tagId) => Number(tagId))
+    .filter(Boolean);
+}
+
+function tagNames(row) {
+  return String(row.tag_names || "")
+    .split("、")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+function renderFriendTagFilters() {
+  const box = $("friendTagFilters");
+  box.innerHTML = "";
+  if (!state.friendTags.length) {
+    box.classList.add("hidden");
+    return;
+  }
+  box.classList.remove("hidden");
+  const allButton = document.createElement("button");
+  allButton.className = `tag-filter-chip ${state.activeFriendTagId ? "" : "active"}`;
+  allButton.dataset.filterTag = "";
+  allButton.textContent = "全部标签";
+  box.appendChild(allButton);
+  state.friendTags.forEach((tag) => {
+    const button = document.createElement("button");
+    button.className = `tag-filter-chip ${Number(state.activeFriendTagId) === Number(tag.tag_id) ? "active" : ""}`;
+    button.dataset.filterTag = tag.tag_id;
+    button.textContent = `${tag.tag_name} ${tag.friend_count || 0}`;
+    box.appendChild(button);
+  });
+}
+
 async function login() {
   const user = await request("/auth/login", {
     method: "POST",
@@ -456,18 +499,22 @@ async function loadFriends(starredOnly = state.friendFilter === "starred", optio
   const user = requireLogin();
   if (!options.preserveFilter) setFriendFilter(starredOnly ? "starred" : "all");
   if (!options.preserveAux) hideFriendAuxPanel();
-  const query = starredOnly ? "?starred=1" : "";
-  const rows = await request(`/friends/${user.user_id}${query}`);
+  const query = new URLSearchParams();
+  if (starredOnly) query.set("starred", "1");
+  if (state.activeFriendTagId) query.set("tag_id", state.activeFriendTagId);
+  const rows = await request(`/friends/${user.user_id}${query.toString() ? `?${query}` : ""}`);
   state.friends = rows;
   const list = $("friendList");
   list.innerHTML = "";
   if (!rows.length) {
     resetFriendDetail();
+    if (state.activeFriendTagId) return renderEmpty(list, "这个标签下暂无好友");
     return renderEmpty(list, starredOnly ? "暂无星标朋友" : "暂无好友");
   }
   rows.forEach((row) => {
     const remark = displayFriendRemark(row);
     const displayName = remark || row.nickname || row.wechat_id;
+    const tags = tagNames(row);
     const node = card(`
       <div class="friend-main">
         ${avatarMarkup(row, displayName, "friend-avatar", row.friend_id)}
@@ -480,6 +527,7 @@ async function loadFriends(starredOnly = state.friendFilter === "starred", optio
             </span>
           </header>
           <div class="meta">账号 ${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}${row.signature ? ` · ${row.signature}` : ""}</div>
+          ${tags.length ? `<div class="friend-tags">${tags.map((name) => `<span>${name}</span>`).join("")}</div>` : ""}
           <p class="friend-moment">${latestMomentText(row)}</p>
         </div>
       </div>
@@ -524,6 +572,7 @@ async function addFriend(addresseeId) {
     body: JSON.stringify({ requester_id: user.user_id, addressee_id: Number(addresseeId) }),
   });
   toast("好友申请已发送");
+  await searchUsers();
 }
 
 async function handleFriendRequest(friendshipId, status) {
@@ -535,6 +584,18 @@ async function handleFriendRequest(friendshipId, status) {
   toast("好友申请已处理");
   await loadRequests();
   await loadFriends(false, { preserveAux: true, preserveFilter: true });
+}
+
+async function loadFriendTags() {
+  const user = requireLogin();
+  state.friendTags = await request(`/friend-tags/${user.user_id}`);
+  renderFriendTagFilters();
+}
+
+async function setFriendTagFilter(tagId) {
+  state.activeFriendTagId = tagId ? Number(tagId) : null;
+  renderFriendTagFilters();
+  await loadFriends(state.friendFilter === "starred", { preserveFilter: true });
 }
 
 function friendById(friendId) {
@@ -554,7 +615,9 @@ function renderFriendDetail(friendId) {
   detailAvatar.dataset.profileId = row.friend_id;
   detailAvatar.innerHTML = `${row.avatar_url ? `<img src="${row.avatar_url}" alt="${displayName}头像" onerror="this.style.display='none'" />` : ""}<span>${(displayName || "U").slice(0, 1).toUpperCase()}</span>`;
   $("friendDetailName").textContent = displayName;
-  $("friendDetailMeta").textContent = `账号 ${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}`;
+  $("friendDetailMeta").textContent = `账号 ${row.wechat_id}${remark ? ` · 昵称 ${row.nickname}` : ""}${
+    row.tag_names ? ` · ${row.tag_names}` : ""
+  }`;
   $("friendDetailSignature").textContent = row.signature || "这个人还没有留下个性签名";
   $("friendLastMoment").textContent = latestMomentText(row);
   $("friendProfileBtn").dataset.profileId = row.friend_id;
@@ -571,6 +634,17 @@ function renderFriendDetail(friendId) {
 
 function renderPermissionPanel(row) {
   const remark = displayFriendRemark(row);
+  const selectedTagIds = parseTagIds(row);
+  const tagOptions = state.friendTags
+    .map(
+      (tag) => `
+        <label class="tag-check">
+          <input type="checkbox" data-tag-member="${tag.tag_id}" ${selectedTagIds.includes(Number(tag.tag_id)) ? "checked" : ""} />
+          <span>${tag.tag_name}</span>
+        </label>
+      `
+    )
+    .join("");
   $("friendPermissionPanel").innerHTML = `
     <label>备注<input data-permission-field="remark" value="${remark}" placeholder="未设置时显示对方昵称" /></label>
     <div class="permission-switches">
@@ -579,6 +653,18 @@ function renderPermissionPanel(row) {
       <label><input type="checkbox" data-permission-field="can_view_their_moments" ${checked(row.can_view_their_moments)} /> 我可看对方</label>
       <label><input type="checkbox" data-permission-field="is_starred" ${checked(row.is_starred)} /> 星标朋友</label>
       <label><input type="checkbox" data-permission-field="blocked" ${row.status === "blocked" ? "checked" : ""} /> 加入黑名单</label>
+    </div>
+    <div class="tag-editor">
+      <div class="tag-editor-head">
+        <strong>好友标签</strong>
+        <span>用于分组筛选</span>
+      </div>
+      <div class="tag-checks">${tagOptions || `<span class="meta">还没有标签，先新建一个。</span>`}</div>
+      <div class="tag-create-row">
+        <input data-new-tag-name="${row.friend_id}" placeholder="新建标签，例如 同学" />
+        <button class="ghost" data-create-assign-tag="${row.friend_id}">添加</button>
+      </div>
+      <button class="ghost" data-save-friend-tags="${row.friend_id}">保存标签</button>
     </div>
     <div class="permission-actions">
       <button data-save-permissions="${row.friendship_id}">保存管理设置</button>
@@ -619,6 +705,40 @@ async function savePermissions(friendshipId) {
   const selectedFriendId = state.selectedFriendId;
   await loadFriends(state.friendFilter === "starred");
   if (selectedFriendId) renderFriendDetail(selectedFriendId);
+}
+
+async function saveFriendTags(friendId, extraTagId = null) {
+  const user = requireLogin();
+  const panel = $("friendPermissionPanel");
+  const tagIds = Array.from(panel.querySelectorAll("[data-tag-member]:checked")).map((item) =>
+    Number(item.dataset.tagMember)
+  );
+  if (extraTagId && !tagIds.includes(Number(extraTagId))) tagIds.push(Number(extraTagId));
+  await request("/friend-tags/members", {
+    method: "PATCH",
+    body: JSON.stringify({ owner_id: user.user_id, friend_id: Number(friendId), tag_ids: tagIds }),
+  });
+  toast("好友标签已保存");
+  const selectedFriendId = state.selectedFriendId;
+  await loadFriendTags();
+  await loadFriends(state.friendFilter === "starred", { preserveFilter: true });
+  if (selectedFriendId) {
+    renderFriendDetail(selectedFriendId);
+    $("friendPermissionPanel").classList.remove("hidden");
+  }
+}
+
+async function createAndAssignTag(friendId) {
+  const user = requireLogin();
+  const input = $("friendPermissionPanel").querySelector(`[data-new-tag-name="${friendId}"]`);
+  const tagName = input.value.trim();
+  if (!tagName) return toast("请输入标签名称");
+  const tag = await request("/friend-tags", {
+    method: "POST",
+    body: JSON.stringify({ owner_id: user.user_id, tag_name: tagName }),
+  });
+  input.value = "";
+  await saveFriendTags(friendId, tag.tag_id);
 }
 
 async function toggleStar(friendshipId) {
@@ -1025,6 +1145,12 @@ function bindEvents() {
       return;
     }
 
+    const tagFilterTarget = event.target.closest("[data-filter-tag]");
+    if (tagFilterTarget) {
+      setFriendTagFilter(tagFilterTarget.dataset.filterTag).catch((error) => toast(error.message));
+      return;
+    }
+
     const conversationCard = event.target.closest(".conversation-card");
     if (conversationCard) {
       const previousConversationId = state.conversationId;
@@ -1056,6 +1182,8 @@ function bindEvents() {
     if (target.dataset.togglePermissionPanel) togglePermissionPanel(target.dataset.togglePermissionPanel);
     if (target.dataset.savePermissions) savePermissions(target.dataset.savePermissions).catch((error) => toast(error.message));
     if (target.dataset.deleteFriend) deleteFriend(target.dataset.deleteFriend).catch((error) => toast(error.message));
+    if (target.dataset.saveFriendTags) saveFriendTags(target.dataset.saveFriendTags).catch((error) => toast(error.message));
+    if (target.dataset.createAssignTag) createAndAssignTag(target.dataset.createAssignTag).catch((error) => toast(error.message));
     if (target.id === "friendMomentsBtn") openProfile(target.dataset.profileId).catch((error) => toast(error.message));
     if (target.id === "friendProfileBtn") openProfile(target.dataset.profileId).catch((error) => toast(error.message));
     if (target.dataset.chat) {

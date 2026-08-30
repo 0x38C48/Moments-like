@@ -67,6 +67,15 @@ class Database:
         self.conn.commit()
         return affected
 
+    def executemany(self, sql: str, rows: Iterable[Iterable[Any]]) -> int:
+        rows = list(rows)
+        if not rows:
+            return 0
+        with self.conn.cursor() as cur:
+            affected = cur.executemany(sql, rows)
+        self.conn.commit()
+        return affected
+
     def callproc(self, name: str, params: Iterable[Any] = ()) -> list[dict[str, Any]]:
         with self.conn.cursor() as cur:
             cur.callproc(name, params)
@@ -214,7 +223,32 @@ def search_users():
 @app.get("/api/friends/<int:user_id>")
 def friends(user_id: int):
     starred_only = request.args.get("starred") == "1"
+    tag_id = int(request.args.get("tag_id", "0") or "0")
     starred_clause = "AND f.is_starred = 1" if starred_only else ""
+    tag_join = ""
+    params: list[Any] = [
+        user_id,
+        user_id,
+        user_id,
+        user_id,
+        user_id,
+        user_id,
+        user_id,
+        user_id,
+        user_id,
+        user_id,
+    ]
+    if tag_id:
+        tag_join = """
+            JOIN friend_tag_members ftm_filter
+              ON ftm_filter.friend_id = CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END
+            JOIN friend_tags ft_filter
+              ON ft_filter.tag_id = ftm_filter.tag_id
+             AND ft_filter.owner_id = %s
+             AND ft_filter.tag_id = %s
+        """
+        params.extend([user_id, user_id, tag_id])
+    params.extend([user_id, user_id])
     with Database() as db:
         rows = db.query(
             f"""
@@ -231,6 +265,20 @@ def friends(user_id: int):
               f.can_view_my_moments,
               f.can_view_their_moments,
               f.is_starred,
+              COALESCE((
+                SELECT GROUP_CONCAT(ft.tag_id ORDER BY ft.tag_name SEPARATOR ',')
+                FROM friend_tag_members ftm
+                JOIN friend_tags ft ON ft.tag_id = ftm.tag_id
+                WHERE ft.owner_id = %s
+                  AND ftm.friend_id = CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END
+              ), '') AS tag_ids,
+              COALESCE((
+                SELECT GROUP_CONCAT(ft.tag_name ORDER BY ft.tag_name SEPARATOR '、')
+                FROM friend_tag_members ftm
+                JOIN friend_tags ft ON ft.tag_id = ftm.tag_id
+                WHERE ft.owner_id = %s
+                  AND ftm.friend_id = CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END
+              ), '') AS tag_names,
               (
                 SELECT mp.created_at
                 FROM moment_posts mp
@@ -258,14 +306,130 @@ def friends(user_id: int):
             FROM friendships f
             JOIN users u ON u.user_id = CASE WHEN f.requester_id = %s THEN f.addressee_id ELSE f.requester_id END
             JOIN user_profiles p ON p.user_id = u.user_id
+            {tag_join}
             WHERE (f.requester_id = %s OR f.addressee_id = %s)
               AND f.status IN ('accepted', 'blocked')
               {starred_clause}
             ORDER BY f.is_starred DESC, p.nickname
             """,
-            (user_id, user_id, user_id, user_id, user_id, user_id, user_id, user_id),
+            params,
         )
     return ok(rows)
+
+
+@app.get("/api/friend-tags/<int:user_id>")
+def friend_tags(user_id: int):
+    friend_id = int(request.args.get("friend_id", "0") or "0")
+    member_select = ""
+    params: list[Any] = []
+    if friend_id:
+        member_select = """
+          , CASE WHEN EXISTS (
+              SELECT 1
+              FROM friend_tag_members ftm
+              WHERE ftm.tag_id = ft.tag_id AND ftm.friend_id = %s
+            ) THEN 1 ELSE 0 END AS is_member
+        """
+        params.append(friend_id)
+    params.append(user_id)
+    with Database() as db:
+        rows = db.query(
+            f"""
+            SELECT ft.tag_id, ft.tag_name, ft.created_at,
+                   COUNT(ftm.friend_id) AS friend_count
+                   {member_select}
+            FROM friend_tags ft
+            LEFT JOIN friend_tag_members ftm ON ftm.tag_id = ft.tag_id
+            WHERE ft.owner_id = %s
+            GROUP BY ft.tag_id, ft.tag_name, ft.created_at
+            ORDER BY ft.tag_name
+            """,
+            params,
+        )
+    return ok(rows)
+
+
+@app.post("/api/friend-tags")
+def create_friend_tag():
+    body = json_body()
+    owner_id = int(body.get("owner_id", 0))
+    tag_name = body.get("tag_name", "").strip()
+    if not owner_id or not tag_name:
+        return fail("标签名称不能为空")
+    if len(tag_name) > 40:
+        return fail("标签名称不能超过 40 个字符")
+    with Database() as db:
+        db.execute(
+            "INSERT IGNORE INTO friend_tags(owner_id, tag_name) VALUES(%s, %s)",
+            (owner_id, tag_name),
+        )
+        row = db.one(
+            """
+            SELECT tag_id, tag_name, created_at
+            FROM friend_tags
+            WHERE owner_id = %s AND tag_name = %s
+            """,
+            (owner_id, tag_name),
+        )
+    return ok(row, message="标签已保存")
+
+
+@app.patch("/api/friend-tags/members")
+def update_friend_tag_members():
+    body = json_body()
+    owner_id = int(body.get("owner_id", 0))
+    friend_id = int(body.get("friend_id", 0))
+    tag_ids = []
+    for raw_tag_id in body.get("tag_ids", []):
+        try:
+            tag_id = int(raw_tag_id)
+        except (TypeError, ValueError):
+            continue
+        if tag_id:
+            tag_ids.append(tag_id)
+    if not owner_id or not friend_id:
+        return fail("标签成员参数无效")
+    with Database() as db:
+        friendship = db.one(
+            """
+            SELECT friendship_id
+            FROM friendships
+            WHERE status IN ('accepted', 'blocked')
+              AND ((requester_id = %s AND addressee_id = %s)
+                OR (requester_id = %s AND addressee_id = %s))
+            """,
+            (owner_id, friend_id, friend_id, owner_id),
+        )
+        if not friendship:
+            return fail("只能给好友设置标签", 404)
+        if tag_ids:
+            placeholders = ",".join(["%s"] * len(tag_ids))
+            valid_rows = db.query(
+                f"""
+                SELECT tag_id
+                FROM friend_tags
+                WHERE owner_id = %s AND tag_id IN ({placeholders})
+                """,
+                [owner_id, *tag_ids],
+            )
+            valid_tag_ids = [row["tag_id"] for row in valid_rows]
+        else:
+            valid_tag_ids = []
+        db.execute(
+            """
+            DELETE ftm
+            FROM friend_tag_members ftm
+            JOIN friend_tags ft ON ft.tag_id = ftm.tag_id
+            WHERE ft.owner_id = %s AND ftm.friend_id = %s
+            """,
+            (owner_id, friend_id),
+        )
+        if valid_tag_ids:
+            db.executemany(
+                "INSERT IGNORE INTO friend_tag_members(tag_id, friend_id) VALUES(%s, %s)",
+                [(tag_id, friend_id) for tag_id in valid_tag_ids],
+            )
+    return ok({"tag_ids": valid_tag_ids}, message="好友标签已更新")
 
 
 @app.post("/api/friends/request")

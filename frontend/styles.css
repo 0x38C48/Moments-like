@@ -640,6 +640,30 @@ label {
   color: var(--ink);
 }
 
+.friend-tag-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.tag-filter-chip {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(168, 221, 201, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tag-filter-chip.active,
+.tag-filter-chip:hover {
+  border-color: rgba(32, 199, 122, 0.28);
+  background: rgba(32, 199, 122, 0.13);
+  color: #dfffee;
+}
+
 .add-friend-button {
   flex: 0 0 36px;
   width: 36px;
@@ -885,6 +909,22 @@ h3 {
   line-height: 1.45;
 }
 
+.friend-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.friend-tags span,
+.tag-check span {
+  border-radius: 999px;
+  background: rgba(32, 199, 122, 0.1);
+  color: #b9f2d2;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
 .permission-panel {
   display: grid;
   gap: 10px;
@@ -932,6 +972,64 @@ h3 {
   min-height: 28px;
   gap: 8px;
   line-height: 1.4;
+}
+
+.tag-editor {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.tag-editor-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tag-editor-head strong {
+  font-size: 14px;
+}
+
+.tag-editor-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tag-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-check {
+  display: inline-flex !important;
+  width: auto;
+  min-height: 28px;
+  gap: 6px;
+}
+
+.tag-check input {
+  flex: 0 0 14px;
+}
+
+.tag-check input:not(:checked) + span {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+}
+
+.tag-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.tag-create-row button,
+.tag-editor > button {
+  min-height: 32px;
+  font-size: 13px;
 }
 
 .permission-actions {
