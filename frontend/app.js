@@ -580,7 +580,10 @@ function renderPermissionPanel(row) {
       <label><input type="checkbox" data-permission-field="is_starred" ${checked(row.is_starred)} /> 星标朋友</label>
       <label><input type="checkbox" data-permission-field="blocked" ${row.status === "blocked" ? "checked" : ""} /> 加入黑名单</label>
     </div>
-    <button data-save-permissions="${row.friendship_id}">保存管理设置</button>
+    <div class="permission-actions">
+      <button data-save-permissions="${row.friendship_id}">保存管理设置</button>
+      <button class="danger ghost" data-delete-friend="${row.friendship_id}">删除好友</button>
+    </div>
   `;
 }
 
@@ -639,6 +642,25 @@ async function toggleStar(friendshipId) {
   const selectedFriendId = state.selectedFriendId;
   await loadFriends(state.friendFilter === "starred");
   if (selectedFriendId) renderFriendDetail(selectedFriendId);
+}
+
+async function deleteFriend(friendshipId) {
+  const user = requireLogin();
+  const row = state.friends.find((item) => Number(item.friendship_id) === Number(friendshipId));
+  if (!row) return;
+  const displayName = displayFriendRemark(row) || row.nickname || row.wechat_id || "这位好友";
+  if (!window.confirm(`确定删除好友「${displayName}」吗？聊天记录会保留。`)) return;
+  await request(`/friends/${friendshipId}`, {
+    method: "DELETE",
+    body: JSON.stringify({ user_id: user.user_id }),
+  });
+  toast("好友已删除");
+  state.selectedFriendId = null;
+  state.miniConversationId = null;
+  state.miniConversationTitle = "";
+  resetFriendDetail();
+  await loadFriends(state.friendFilter === "starred");
+  await loadConversations().catch(() => {});
 }
 
 async function ensurePrivateConversation(friendId, friendName = "") {
@@ -1033,6 +1055,7 @@ function bindEvents() {
     if (target.dataset.reject) handleFriendRequest(target.dataset.reject, "rejected").catch((error) => toast(error.message));
     if (target.dataset.togglePermissionPanel) togglePermissionPanel(target.dataset.togglePermissionPanel);
     if (target.dataset.savePermissions) savePermissions(target.dataset.savePermissions).catch((error) => toast(error.message));
+    if (target.dataset.deleteFriend) deleteFriend(target.dataset.deleteFriend).catch((error) => toast(error.message));
     if (target.id === "friendMomentsBtn") openProfile(target.dataset.profileId).catch((error) => toast(error.message));
     if (target.id === "friendProfileBtn") openProfile(target.dataset.profileId).catch((error) => toast(error.message));
     if (target.dataset.chat) {

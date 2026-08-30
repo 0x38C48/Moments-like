@@ -369,6 +369,50 @@ def update_permissions(friendship_id: int):
     return ok({"affected": affected})
 
 
+@app.delete("/api/friends/<int:friendship_id>")
+def delete_friend(friendship_id: int):
+    body = json_body()
+    user_id = int(body.get("user_id") or request.args.get("user_id", "0") or "0")
+    if not user_id:
+        return fail("用户编号不能为空")
+    with Database() as db:
+        friendship = db.one(
+            """
+            SELECT requester_id, addressee_id
+            FROM friendships
+            WHERE friendship_id = %s
+              AND status IN ('accepted', 'blocked')
+              AND (requester_id = %s OR addressee_id = %s)
+            """,
+            (friendship_id, user_id, user_id),
+        )
+        if not friendship:
+            return fail("好友关系不存在", 404)
+        friend_id = (
+            friendship["addressee_id"]
+            if friendship["requester_id"] == user_id
+            else friendship["requester_id"]
+        )
+        db.execute(
+            """
+            DELETE ftm
+            FROM friend_tag_members ftm
+            JOIN friend_tags ft ON ft.tag_id = ftm.tag_id
+            WHERE ft.owner_id = %s AND ftm.friend_id = %s
+            """,
+            (user_id, friend_id),
+        )
+        db.execute(
+            """
+            DELETE FROM friendships
+            WHERE friendship_id = %s
+              AND (requester_id = %s OR addressee_id = %s)
+            """,
+            (friendship_id, user_id, user_id),
+        )
+    return ok(message="好友已删除")
+
+
 @app.get("/api/conversations/<int:user_id>")
 def conversations(user_id: int):
     with Database() as db:

@@ -64,6 +64,17 @@ button.ghost {
   color: var(--ink);
 }
 
+button.danger {
+  border-color: rgba(255, 147, 111, 0.24);
+  background: rgba(255, 147, 111, 0.12);
+  color: var(--warn);
+}
+
+button.danger:hover {
+  background: rgba(255, 147, 111, 0.2);
+  color: #ffd7cb;
+}
+
 .icon-button {
   width: 38px;
   min-width: 38px;
@@ -921,6 +932,16 @@ h3 {
   min-height: 28px;
   gap: 8px;
   line-height: 1.4;
+}
+
+.permission-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.permission-actions button {
+  flex: 1 1 0;
 }
 
 .message-box {
