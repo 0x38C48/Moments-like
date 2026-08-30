@@ -559,17 +559,52 @@ label {
 }
 
 .friend-search {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  min-width: 0;
 }
 
-.friend-search .drawer-hint {
-  grid-column: 1 / -1;
-  min-height: auto;
-  margin: 0;
+.friend-search-box {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid rgba(168, 221, 201, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  padding: 4px 6px 4px 12px;
+}
+
+.friend-search-box input {
+  min-height: 30px;
+  border: 0;
+  background: transparent;
   padding: 0;
+}
+
+.search-glyph {
+  display: grid;
+  place-items: center;
   color: var(--muted);
+}
+
+.search-glyph svg,
+.compact-search-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.compact-search-button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 8px;
+  color: var(--ink);
 }
 
 .soft-filters {
@@ -658,13 +693,25 @@ label {
   inset: 14px;
   z-index: 4;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 12px;
   border-radius: 8px;
   background: rgba(12, 20, 24, 0.97);
   box-shadow: var(--shadow);
   padding: 14px;
   overflow: hidden;
+}
+
+.friend-aux-drawer.add-friend-mode {
+  inset: 14px auto auto 14px;
+  width: min(430px, calc(100% - 28px));
+  max-height: calc(100% - 28px);
+  background: rgba(14, 23, 27, 0.98);
+}
+
+.friend-aux-drawer .list {
+  min-height: 0;
+  overflow: auto;
 }
 
 .chat-layout {

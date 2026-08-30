@@ -185,20 +185,22 @@ async function refreshActiveTab() {
 function showFriendAuxPanel(title, options = {}) {
   $("friendAuxTitle").textContent = title;
   $("friendSearchPanel").classList.toggle("hidden", !options.showSearch);
+  $("friendAuxPanel").classList.toggle("add-friend-mode", options.variant === "add");
   $("friendAuxPanel").classList.remove("hidden");
 }
 
 function hideFriendAuxPanel() {
   $("friendAuxPanel").classList.add("hidden");
+  $("friendAuxPanel").classList.remove("add-friend-mode");
   $("friendSearchPanel").classList.add("hidden");
   $("userList").innerHTML = "";
 }
 
 function openFriendSearchPanel() {
   requireLogin();
-  showFriendAuxPanel("添加好友", { showSearch: true });
+  showFriendAuxPanel("添加好友", { showSearch: true, variant: "add" });
   $("searchKeyword").value = "";
-  renderEmpty($("userList"), "输入账号或手机号后搜索非好友");
+  renderEmpty($("userList"), "输入账号或手机号");
   $("searchKeyword").focus();
 }
 
@@ -426,7 +428,7 @@ async function saveProfile() {
 async function searchUsers() {
   const user = requireLogin();
   const keyword = $("searchKeyword").value.trim();
-  showFriendAuxPanel("添加好友", { showSearch: true });
+  showFriendAuxPanel("添加好友", { showSearch: true, variant: "add" });
   if (!keyword) return renderEmpty($("userList"), "请输入账号或手机号");
   const rows = await request(
     `/users/search?current_user_id=${user.user_id}&keyword=${encodeURIComponent(keyword)}`

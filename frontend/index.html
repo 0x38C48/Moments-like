@@ -178,9 +178,15 @@
                   <button class="icon-button ghost" id="closeFriendAuxBtn" title="关闭" aria-label="关闭">×</button>
                 </div>
                 <div class="friend-search hidden" id="friendSearchPanel">
-                  <input id="searchKeyword" placeholder="输入账号或手机号" />
-                  <button id="searchUserBtn">搜索</button>
-                  <p class="drawer-hint">只支持通过账号或手机号查找非好友。</p>
+                  <div class="friend-search-box">
+                    <span class="search-glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8" /></svg>
+                    </span>
+                    <input id="searchKeyword" placeholder="账号或手机号" />
+                    <button class="icon-button ghost compact-search-button" id="searchUserBtn" title="搜索" aria-label="搜索">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8" /></svg>
+                    </button>
+                  </div>
                 </div>
                 <div class="list" id="userList"></div>
               </div>
