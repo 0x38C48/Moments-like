@@ -131,14 +131,13 @@
           <div class="friends-shell">
             <div class="friends-list-pane">
               <div class="friend-tools">
-                <div class="friend-search">
-                  <input id="searchKeyword" placeholder="按账号或手机号搜索非好友" />
-                  <button id="searchUserBtn">搜索</button>
-                </div>
-                <div class="soft-filters" aria-label="好友筛选">
-                  <button class="active" id="showAllFriendsBtn" data-friend-filter="all">全部</button>
-                  <button id="showStarredFriendsBtn" data-friend-filter="starred">星标</button>
-                  <button id="loadRequestsBtn" data-friend-filter="requests">申请</button>
+                <div class="friend-tools-row">
+                  <div class="soft-filters" aria-label="好友筛选">
+                    <button class="active" id="showAllFriendsBtn" data-friend-filter="all">全部</button>
+                    <button id="showStarredFriendsBtn" data-friend-filter="starred">星标</button>
+                    <button id="loadRequestsBtn" data-friend-filter="requests">申请</button>
+                  </div>
+                  <button class="icon-button add-friend-button" id="openAddFriendBtn" title="添加好友" aria-label="添加好友">+</button>
                 </div>
               </div>
               <div class="list friend-list" id="friendList"></div>
@@ -177,6 +176,11 @@
                 <div class="drawer-head">
                   <h3 id="friendAuxTitle">搜索结果</h3>
                   <button class="icon-button ghost" id="closeFriendAuxBtn" title="关闭" aria-label="关闭">×</button>
+                </div>
+                <div class="friend-search hidden" id="friendSearchPanel">
+                  <input id="searchKeyword" placeholder="输入账号或手机号" />
+                  <button id="searchUserBtn">搜索</button>
+                  <p class="drawer-hint">只支持通过账号或手机号查找非好友。</p>
                 </div>
                 <div class="list" id="userList"></div>
               </div>

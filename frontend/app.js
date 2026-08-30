@@ -182,14 +182,24 @@ async function refreshActiveTab() {
   if (state.activeTab === "stats") await loadStats("messages");
 }
 
-function showFriendAuxPanel(title) {
+function showFriendAuxPanel(title, options = {}) {
   $("friendAuxTitle").textContent = title;
+  $("friendSearchPanel").classList.toggle("hidden", !options.showSearch);
   $("friendAuxPanel").classList.remove("hidden");
 }
 
 function hideFriendAuxPanel() {
   $("friendAuxPanel").classList.add("hidden");
+  $("friendSearchPanel").classList.add("hidden");
   $("userList").innerHTML = "";
+}
+
+function openFriendSearchPanel() {
+  requireLogin();
+  showFriendAuxPanel("添加好友", { showSearch: true });
+  $("searchKeyword").value = "";
+  renderEmpty($("userList"), "输入账号或手机号后搜索非好友");
+  $("searchKeyword").focus();
 }
 
 function setFriendFilter(filter) {
@@ -415,13 +425,15 @@ async function saveProfile() {
 
 async function searchUsers() {
   const user = requireLogin();
-  showFriendAuxPanel("非好友搜索");
+  const keyword = $("searchKeyword").value.trim();
+  showFriendAuxPanel("添加好友", { showSearch: true });
+  if (!keyword) return renderEmpty($("userList"), "请输入账号或手机号");
   const rows = await request(
-    `/users/search?current_user_id=${user.user_id}&keyword=${encodeURIComponent($("searchKeyword").value)}`
+    `/users/search?current_user_id=${user.user_id}&keyword=${encodeURIComponent(keyword)}`
   );
   const list = $("userList");
   list.innerHTML = "";
-  if (!rows.length) return renderEmpty(list);
+  if (!rows.length) return renderEmpty(list, "没有找到可添加的非好友");
   rows.forEach((row) => {
     const node = card(`
       <div class="friend-main">
@@ -943,7 +955,11 @@ function bindEvents() {
     if (event.target.id === "imageViewer") closeImageViewer();
   });
   $("saveProfileBtn").addEventListener("click", () => saveProfile().catch((error) => toast(error.message)));
+  $("openAddFriendBtn").addEventListener("click", openFriendSearchPanel);
   $("searchUserBtn").addEventListener("click", () => searchUsers().catch((error) => toast(error.message)));
+  $("searchKeyword").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") searchUsers().catch((error) => toast(error.message));
+  });
   $("showAllFriendsBtn").addEventListener("click", () => loadFriends(false).catch((error) => toast(error.message)));
   $("showStarredFriendsBtn").addEventListener("click", () => loadFriends(true).catch((error) => toast(error.message)));
   $("loadRequestsBtn").addEventListener("click", () => loadRequests().catch((error) => toast(error.message)));

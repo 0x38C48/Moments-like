@@ -551,15 +551,31 @@ label {
   margin-bottom: 12px;
 }
 
+.friend-tools-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .friend-search {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
 }
 
+.friend-search .drawer-hint {
+  grid-column: 1 / -1;
+  min-height: auto;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+}
+
 .soft-filters {
   display: flex;
   gap: 8px;
+  min-width: 0;
 }
 
 .soft-filters button {
@@ -576,6 +592,22 @@ label {
   border-color: rgba(32, 199, 122, 0.22);
   background: rgba(32, 199, 122, 0.12);
   color: var(--ink);
+}
+
+.add-friend-button {
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  background: rgba(32, 199, 122, 0.14);
+  border: 1px solid rgba(32, 199, 122, 0.3);
+  color: var(--primary);
+}
+
+.add-friend-button:hover {
+  background: rgba(32, 199, 122, 0.24);
+  color: #dfffee;
 }
 
 .friend-detail-pane {
