@@ -6,4 +6,5 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 output/
 *.pptx.inspect.ndjson
+~$*.pptx
 微信式资料与朋友圈系统-课程设计汇报/
